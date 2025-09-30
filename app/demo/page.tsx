@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import { createClient } from "@/lib/supabase/client"
 
 export default function DemoPage() {
   const { toast } = useToast()
@@ -31,24 +32,54 @@ export default function DemoPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const supabase = createClient()
 
-    toast({
-      title: "Demo Request Received!",
-      description: "We'll contact you within 24 hours to schedule your personalized demo.",
-    })
+      const { error } = await supabase.from("leads").insert({
+        full_name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        company_name: formData.company,
+        message: `Projects Per Year: ${formData.projectsPerYear}\nPrimary Interest: ${formData.interest}\n\n${formData.message}`,
+        source: "demo_page",
+        status: "new",
+      })
 
-    setIsSubmitting(false)
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      company: "",
-      projectsPerYear: "",
-      interest: "",
-      message: "",
-    })
+      if (error) {
+        console.error("[v0] Error submitting lead:", error)
+        toast({
+          title: "Submission Failed",
+          description: "There was an error submitting your request. Please try again.",
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      toast({
+        title: "Demo Request Received!",
+        description: "We'll contact you within 24 hours to schedule your personalized demo.",
+      })
+
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        company: "",
+        projectsPerYear: "",
+        interest: "",
+        message: "",
+      })
+    } catch (error) {
+      console.error("[v0] Unexpected error:", error)
+      toast({
+        title: "Submission Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (field: string, value: string) => {
@@ -152,6 +183,7 @@ export default function DemoPage() {
                     <Select
                       value={formData.projectsPerYear}
                       onValueChange={(value) => handleChange("projectsPerYear", value)}
+                      required
                     >
                       <SelectTrigger className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7]">
                         <SelectValue placeholder="Select range" />
@@ -177,7 +209,11 @@ export default function DemoPage() {
                     <Label htmlFor="interest" className="text-[#EDE7C7]">
                       Primary Interest *
                     </Label>
-                    <Select value={formData.interest} onValueChange={(value) => handleChange("interest", value)}>
+                    <Select
+                      value={formData.interest}
+                      onValueChange={(value) => handleChange("interest", value)}
+                      required
+                    >
                       <SelectTrigger className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7]">
                         <SelectValue placeholder="Select your main interest" />
                       </SelectTrigger>
