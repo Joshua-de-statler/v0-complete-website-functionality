@@ -1,7 +1,8 @@
+// app/demo/page.tsx
+
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { Background } from "@/components/background"
@@ -31,24 +32,42 @@ export default function DemoPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const response = await fetch('/api/demo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-    toast({
-      title: "Demo Request Received!",
-      description: "We'll contact you within 24 hours to schedule your personalized demo.",
-    })
+      if (!response.ok) {
+        throw new Error('Something went wrong')
+      }
 
-    setIsSubmitting(false)
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      company: "",
-      projectsPerYear: "",
-      interest: "",
-      message: "",
-    })
+      toast({
+        title: "Demo Request Received!",
+        description: "We'll contact you within 24 hours to schedule your personalized demo.",
+      })
+
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        company: "",
+        projectsPerYear: "",
+        interest: "",
+        message: "",
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (field: string, value: string) => {
