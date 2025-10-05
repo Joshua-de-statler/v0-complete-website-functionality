@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useLayoutEffect, useRef, useState } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
+import Spline from "@splinetool/react-spline/next"
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -27,7 +28,6 @@ export default function HomePage() {
           trigger: scrollContainerRef.current,
           start: "top top",
           end: "50% top",
-          scrub: true,
           scrub: 1.5,
         },
       })
@@ -69,19 +69,19 @@ export default function HomePage() {
               </div>
             </div>
           )}
-          <iframe
-            src="https://my.spline.design/nexbotrobotcharacterconcept-LYbugm6qWDDZhv0Nz4m00WPm/"
-            className={`absolute inset-0 w-full h-full border-none transition-opacity duration-500 ${
+          <div
+            className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${
               spline1Loaded ? "opacity-100" : "opacity-0"
             }`}
             style={{ willChange: "transform, opacity" }}
-            title="3D Robot Intro"
-            loading="eager"
-            onLoad={() => {
-              console.log("[v0] Spline 1 loaded")
-              setSpline1Loaded(true)
-            }}
-          />
+          >
+            <Spline
+              scene="https://prod.spline.design/ds6liaWfJMl9f7OX/scene.splinecode"
+              onLoad={() => {
+                setSpline1Loaded(true)
+              }}
+            />
+          </div>
           {spline1Loaded && (
             <>
               <h2 className="relative z-10 text-3xl font-bold text-[#EDE7C7]/80 mt-auto mb-8 animate-pulse">
@@ -129,25 +129,25 @@ export default function HomePage() {
               <div className="relative h-[600px] rounded-3xl overflow-hidden">
                 <div className="w-full h-full relative">
                   {!spline2Loaded && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[#200E01]/50 backdrop-blur-sm rounded-3xl">
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#200E01]/50 backdrop-blur-sm rounded-3xl z-10">
                       <div className="relative">
                         <div className="w-12 h-12 border-4 border-[#C41E3A]/20 border-t-[#C41E3A] rounded-full animate-spin" />
                       </div>
                     </div>
                   )}
-                  <iframe
-                    src="https://my.spline.design/nexbotrobotcharacterconcept-HiSgMTTXijvS9MMAxqNvexb4/"
-                    className={`w-full h-full border-none transition-opacity duration-500 ${
+                  <div
+                    className={`w-full h-full transition-opacity duration-500 ${
                       spline2Loaded ? "opacity-100" : "opacity-0"
                     }`}
                     style={{ willChange: "transform, opacity" }}
-                    title="3D Robot"
-                    loading="eager"
-                    onLoad={() => {
-                      console.log("[v0] Spline 2 loaded")
-                      setSpline2Loaded(true)
-                    }}
-                  />
+                  >
+                    <Spline
+                      scene="https://prod.spline.design/ds6liaWfJMl9f7OX/scene.splinecode"
+                      onLoad={() => {
+                        setSpline2Loaded(true)
+                      }}
+                    />
+                  </div>
                 </div>
                 <div
                   className="absolute top-[20%] -left-12 px-5 py-4 bg-[#C41E3A]/10 backdrop-blur-md border border-[#C41E3A]/30 rounded-2xl gpu-accelerated"
