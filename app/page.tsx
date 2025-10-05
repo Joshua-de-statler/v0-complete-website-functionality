@@ -76,8 +76,13 @@ export default function HomePage() {
             style={{ willChange: "transform, opacity" }}
           >
             <Spline
-              scene="https://my.spline.design/backlightbgeffect-YSsXWXAvzv6OHHfhLGRkXUWB/"
+              scene="https://prod.spline.design/ds6liaWfJMl9f7OX/scene.splinecode"
               onLoad={() => {
+                console.log("[v0] Spline 1 loaded successfully")
+                setSpline1Loaded(true)
+              }}
+              onError={(error) => {
+                console.error("[v0] Spline 1 failed to load:", error)
                 setSpline1Loaded(true)
               }}
             />
@@ -120,7 +125,7 @@ export default function HomePage() {
                   >
                     Watch Demo
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                      <polygon points="5 3 19 12 5 21 5 3" />
                     </svg>
                   </a>
                 </div>
@@ -130,143 +135,26 @@ export default function HomePage() {
                 <div className="w-full h-full relative">
                   {!spline2Loaded && (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#200E01]/50 backdrop-blur-sm rounded-3xl z-10">
-                      <div className="relative">
-                        <div className="w-12 h-12 border-4 border-[#C41E3A]/20 border-t-[#C41E3A] rounded-full animate-spin" />
-                      </div>
+                      <div className="w-16 h-16 border-4 border-[#C41E3A]/20 border-t-[#C41E3A] rounded-full animate-spin" />
+                      <div className="mt-4 text-[#C41E3A] text-sm font-medium">Loading 3D Experience...</div>
                     </div>
                   )}
-                  <div
-                    className={`w-full h-full transition-opacity duration-500 ${
-                      spline2Loaded ? "opacity-100" : "opacity-0"
-                    }`}
-                    style={{ willChange: "transform, opacity" }}
-                  >
-                    <Spline
-                      scene="https://prod.spline.design/ds6liaWfJMl9f7OX/scene.splinecode"
-                      onLoad={() => {
-                        setSpline2Loaded(true)
-                      }}
-                    />
-                  </div>
-                </div>
-                <div
-                  className="absolute top-[20%] -left-12 px-5 py-4 bg-[#C41E3A]/10 backdrop-blur-md border border-[#C41E3A]/30 rounded-2xl gpu-accelerated"
-                  style={{ animation: "float 6s infinite ease-in-out" }}
-                >
-                  <div className="text-sm font-semibold">24/7 AI Support</div>
-                </div>
-                <div
-                  className="absolute bottom-[30%] -right-12 px-5 py-4 bg-[#C41E3A]/10 backdrop-blur-md border border-[#C41E3A]/30 rounded-2xl gpu-accelerated"
-                  style={{ animation: "float 6s infinite ease-in-out 2s" }}
-                >
-                  <div className="text-sm font-semibold">Smart Automation</div>
+                  <Spline
+                    scene="https://prod.spline.design/another-scene-url/scene.splinecode"
+                    onLoad={() => {
+                      console.log("[v0] Spline 2 loaded successfully")
+                      setSpline2Loaded(true)
+                    }}
+                    onError={(error) => {
+                      console.error("[v0] Spline 2 failed to load:", error)
+                      setSpline2Loaded(true)
+                    }}
+                  />
                 </div>
               </div>
             </div>
           </section>
         </div>
-      </div>
-
-      <div className="relative z-10 bg-[#200E01]">
-        {/* Features Section */}
-        <section id="features" className="py-32 px-[5%] bg-gradient-to-b from-[#200E01] to-[#1a0a01]">
-          <div className="max-w-[1400px] mx-auto">
-            <div className="text-center mb-20">
-              <h2 className="text-5xl md:text-6xl font-extrabold mb-5 bg-gradient-to-r from-[#EDE7C7] to-[#C41E3A] bg-clip-text text-transparent">
-                Engineered for Excellence
-              </h2>
-              <p className="text-xl text-[#EDE7C7]/70 max-w-2xl mx-auto">
-                Purpose-built AI solutions tailored to the unique needs of South Africa's custom home builders
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-10">
-              <div className="p-10 bg-[#8B1538]/10 backdrop-blur-md border border-[#C41E3A]/20 rounded-3xl transition-all hover:-translate-y-3 hover:border-[#C41E3A] relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#C41E3A] to-transparent opacity-0 group-hover:opacity-10 transition-opacity" />
-                <div className="w-16 h-16 bg-gradient-to-br from-[#C41E3A] to-[#8B1538] rounded-2xl flex items-center justify-center text-2xl mb-5">
-                  🏗️
-                </div>
-                <h3 className="text-2xl font-bold mb-4">Project Intelligence</h3>
-                <p className="text-[#EDE7C7]/80 leading-relaxed">
-                  AI-powered project management that tracks timelines, budgets, and resources in real-time. Predict
-                  delays before they happen and optimize workflows automatically.
-                </p>
-              </div>
-
-              <div className="p-10 bg-[#8B1538]/10 backdrop-blur-md border border-[#C41E3A]/20 rounded-3xl transition-all hover:-translate-y-3 hover:border-[#C41E3A] relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#C41E3A] to-transparent opacity-0 group-hover:opacity-10 transition-opacity" />
-                <div className="w-16 h-16 bg-gradient-to-br from-[#C41E3A] to-[#8B1538] rounded-2xl flex items-center justify-center text-2xl mb-5">
-                  🤝
-                </div>
-                <h3 className="text-2xl font-bold mb-4">Client Experience AI</h3>
-                <p className="text-[#EDE7C7]/80 leading-relaxed">
-                  Deliver exceptional client experiences with AI that handles inquiries, provides updates, and maintains
-                  personalized communication at scale.
-                </p>
-              </div>
-
-              <div className="p-10 bg-[#8B1538]/10 backdrop-blur-md border border-[#C41E3A]/20 rounded-3xl transition-all hover:-translate-y-3 hover:border-[#C41E3A] relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#C41E3A] to-transparent opacity-0 group-hover:opacity-10 transition-opacity" />
-                <div className="w-16 h-16 bg-gradient-to-br from-[#C41E3A] to-[#8B1538] rounded-2xl flex items-center justify-center text-2xl mb-5">
-                  📊
-                </div>
-                <h3 className="text-2xl font-bold mb-4">Market Intelligence</h3>
-                <p className="text-[#EDE7C7]/80 leading-relaxed">
-                  Stay ahead with AI-driven insights on market trends, material costs, and competitive positioning
-                  specific to the South African luxury home market.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Stats Section */}
-        <section className="py-20 px-[5%] bg-[#C41E3A]/5 border-y border-[#C41E3A]/20">
-          <div className="max-w-[1200px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
-            <div>
-              <div className="text-5xl font-extrabold bg-gradient-to-r from-[#C41E3A] to-[#EDE7C7] bg-clip-text text-transparent mb-3">
-                87%
-              </div>
-              <div className="text-lg text-[#EDE7C7]/80">Time Saved on Admin</div>
-            </div>
-            <div>
-              <div className="text-5xl font-extrabold bg-gradient-to-r from-[#C41E3A] to-[#EDE7C7] bg-clip-text text-transparent mb-3">
-                3.5x
-              </div>
-              <div className="text-lg text-[#EDE7C7]/80">Faster Client Response</div>
-            </div>
-            <div>
-              <div className="text-5xl font-extrabold bg-gradient-to-r from-[#C41E3A] to-[#EDE7C7] bg-clip-text text-transparent mb-3">
-                R2.4M
-              </div>
-              <div className="text-lg text-[#EDE7C7]/80">Average Cost Saved</div>
-            </div>
-            <div>
-              <div className="text-5xl font-extrabold bg-gradient-to-r from-[#C41E3A] to-[#EDE7C7] bg-clip-text text-transparent mb-3">
-                24/7
-              </div>
-              <div className="text-lg text-[#EDE7C7]/80">AI Availability</div>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-32 px-[5%] text-center bg-[radial-gradient(circle_at_center,rgba(196,30,58,0.1)_0%,transparent_70%)]">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-5 bg-gradient-to-r from-[#EDE7C7] to-[#C41E3A] bg-clip-text text-transparent">
-              Ready to Transform Your Building Business?
-            </h2>
-            <p className="text-xl text-[#EDE7C7]/80 mb-10">
-              Join South Africa's leading custom home builders who are already leveraging AI to scale smarter, build
-              faster, and deliver exceptional results.
-            </p>
-            <Link href="/demo">
-              <Button className="px-10 py-6 text-lg bg-gradient-to-r from-[#C41E3A] to-[#8B1538] text-[#EDE7C7] rounded-full font-semibold hover:scale-105 hover:shadow-lg hover:shadow-[#C41E3A]/30 transition-all">
-                Schedule Your Exclusive Demo
-              </Button>
-            </Link>
-          </div>
-        </section>
       </div>
     </>
   )
