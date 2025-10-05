@@ -14,9 +14,12 @@ export default function HomePage() {
   const scrollContainerRef = useRef(null)
   const heroLayer1Ref = useRef(null)
   const heroLayer2Ref = useRef(null)
-  const [splineLoaded, setSplineLoaded] = useState(false)
+  const [spline1Loaded, setSpline1Loaded] = useState(false)
+  const [spline2Loaded, setSpline2Loaded] = useState(false)
 
   useLayoutEffect(() => {
+    if (!spline1Loaded) return
+
     const ctx = gsap.context(() => {
       gsap.to(heroLayer1Ref.current, {
         opacity: 0,
@@ -25,6 +28,7 @@ export default function HomePage() {
           start: "top top",
           end: "50% top",
           scrub: true,
+          scrub: 1.5,
         },
       })
 
@@ -37,14 +41,14 @@ export default function HomePage() {
             trigger: scrollContainerRef.current,
             start: "25% top",
             end: "75% top",
-            scrub: true,
+            scrub: 1.5,
           },
         },
       )
     }, scrollContainerRef)
 
     return () => ctx.revert()
-  }, [])
+  }, [spline1Loaded])
 
   return (
     <>
@@ -57,22 +61,35 @@ export default function HomePage() {
           ref={heroLayer1Ref}
           className="sticky top-0 h-screen w-full flex flex-col items-center justify-center text-center px-[5%]"
         >
-          {!splineLoaded && (
+          {!spline1Loaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#200E01]">
-              <div className="text-[#C41E3A] text-xl animate-pulse">Loading 3D Experience...</div>
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-[#C41E3A]/20 border-t-[#C41E3A] rounded-full animate-spin" />
+                <div className="mt-4 text-[#C41E3A] text-sm font-medium">Loading 3D Experience...</div>
+              </div>
             </div>
           )}
           <iframe
             src="https://my.spline.design/nexbotrobotcharacterconcept-LYbugm6qWDDZhv0Nz4m00WPm/"
-            className="absolute inset-0 w-full h-full border-none gpu-accelerated"
+            className={`absolute inset-0 w-full h-full border-none transition-opacity duration-500 ${
+              spline1Loaded ? "opacity-100" : "opacity-0"
+            }`}
+            style={{ willChange: "transform, opacity" }}
             title="3D Robot Intro"
             loading="eager"
-            onLoad={() => setSplineLoaded(true)}
+            onLoad={() => {
+              console.log("[v0] Spline 1 loaded")
+              setSpline1Loaded(true)
+            }}
           />
-          <h2 className="relative z-10 text-3xl font-bold text-[#EDE7C7]/80 mt-auto mb-8 animate-pulse">
-            The Future of Building is Here
-          </h2>
-          <p className="relative z-10 text-[#EDE7C7]/50 mb-8">Scroll Down to Begin</p>
+          {spline1Loaded && (
+            <>
+              <h2 className="relative z-10 text-3xl font-bold text-[#EDE7C7]/80 mt-auto mb-8 animate-pulse">
+                The Future of Building is Here
+              </h2>
+              <p className="relative z-10 text-[#EDE7C7]/50 mb-8">Scroll Down to Begin</p>
+            </>
+          )}
         </div>
 
         {/* HERO LAYER 2 */}
@@ -111,11 +128,25 @@ export default function HomePage() {
 
               <div className="relative h-[600px] rounded-3xl overflow-hidden">
                 <div className="w-full h-full relative">
+                  {!spline2Loaded && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#200E01]/50 backdrop-blur-sm rounded-3xl">
+                      <div className="relative">
+                        <div className="w-12 h-12 border-4 border-[#C41E3A]/20 border-t-[#C41E3A] rounded-full animate-spin" />
+                      </div>
+                    </div>
+                  )}
                   <iframe
                     src="https://my.spline.design/nexbotrobotcharacterconcept-HiSgMTTXijvS9MMAxqNvexb4/"
-                    className="w-full h-full border-none gpu-accelerated"
+                    className={`w-full h-full border-none transition-opacity duration-500 ${
+                      spline2Loaded ? "opacity-100" : "opacity-0"
+                    }`}
+                    style={{ willChange: "transform, opacity" }}
                     title="3D Robot"
-                    loading="lazy"
+                    loading="eager"
+                    onLoad={() => {
+                      console.log("[v0] Spline 2 loaded")
+                      setSpline2Loaded(true)
+                    }}
                   />
                 </div>
                 <div

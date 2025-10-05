@@ -19,15 +19,12 @@ export default function DemoPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    name: "",
     email: "",
     phone: "",
     company: "",
-    companySize: "",
-    currentChallenges: "",
-    preferredDate: "",
-    preferredTime: "",
+    projectsPerYear: "",
+    interest: "",
     message: "",
   })
 
@@ -39,19 +36,25 @@ export default function DemoPage() {
       const supabase = createClient()
 
       const { error } = await supabase.from("leads").insert({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
+        full_name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        company: formData.company,
-        company_size: formData.companySize,
-        current_challenges: formData.currentChallenges,
-        preferred_date: formData.preferredDate,
-        preferred_time: formData.preferredTime,
-        message: formData.message || null,
+        company_name: formData.company,
+        message: `Projects Per Year: ${formData.projectsPerYear}\nPrimary Interest: ${formData.interest}\n\n${formData.message}`,
+        source: "demo_page",
+        status: "new",
       })
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Error submitting lead:", error)
+        toast({
+          title: "Submission Failed",
+          description: "There was an error submitting your request. Please try again.",
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        return
+      }
 
       toast({
         title: "Demo Request Received!",
@@ -59,22 +62,19 @@ export default function DemoPage() {
       })
 
       setFormData({
-        firstName: "",
-        lastName: "",
+        name: "",
         email: "",
         phone: "",
         company: "",
-        companySize: "",
-        currentChallenges: "",
-        preferredDate: "",
-        preferredTime: "",
+        projectsPerYear: "",
+        interest: "",
         message: "",
       })
     } catch (error) {
-      console.error("[v0] Error submitting lead:", error)
+      console.error("[v0] Unexpected error:", error)
       toast({
         title: "Submission Failed",
-        description: "There was an error submitting your request. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -96,10 +96,10 @@ export default function DemoPage() {
         <div className="max-w-[1200px] mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-16">
-            <div className="inline-block px-5 py-2 bg-[#C41E3A]/20 border border-[#C41E3A] rounded-full text-sm mb-5">
+            <div className="inline-block px-5 py-2 bg-[#8B0000]/20 border border-[#8B0000] rounded-full text-sm mb-5">
               Schedule Your Demo
             </div>
-            <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-6 bg-gradient-to-r from-[#EDE7C7] via-[#C41E3A] to-[#EDE7C7] bg-clip-text text-transparent text-balance">
+            <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-6 bg-gradient-to-r from-[#EDE7C7] via-[#8B0000] to-[#EDE7C7] bg-clip-text text-transparent text-balance">
               See Zappies AI in Action
             </h1>
             <p className="text-xl text-[#EDE7C7]/80 max-w-3xl mx-auto leading-relaxed">
@@ -109,7 +109,7 @@ export default function DemoPage() {
 
           <div className="grid md:grid-cols-2 gap-12">
             {/* Form */}
-            <Card className="bg-[#5B0202]/10 backdrop-blur-md border-[#C41E3A]/20">
+            <Card className="bg-[#5B0202]/10 backdrop-blur-md border-[#8B0000]/20">
               <CardHeader>
                 <CardTitle className="text-2xl text-[#EDE7C7]">Request Your Demo</CardTitle>
                 <CardDescription className="text-[#EDE7C7]/70">
@@ -118,33 +118,18 @@ export default function DemoPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName" className="text-[#EDE7C7]">
-                        First Name *
-                      </Label>
-                      <Input
-                        id="firstName"
-                        required
-                        value={formData.firstName}
-                        onChange={(e) => handleChange("firstName", e.target.value)}
-                        className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
-                        placeholder="John"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName" className="text-[#EDE7C7]">
-                        Last Name *
-                      </Label>
-                      <Input
-                        id="lastName"
-                        required
-                        value={formData.lastName}
-                        onChange={(e) => handleChange("lastName", e.target.value)}
-                        className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
-                        placeholder="Smith"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-[#EDE7C7]">
+                      Full Name *
+                    </Label>
+                    <Input
+                      id="name"
+                      required
+                      value={formData.name}
+                      onChange={(e) => handleChange("name", e.target.value)}
+                      className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
+                      placeholder="John Smith"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -157,7 +142,7 @@ export default function DemoPage() {
                       required
                       value={formData.email}
                       onChange={(e) => handleChange("email", e.target.value)}
-                      className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
+                      className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
                       placeholder="john@example.com"
                     />
                   </div>
@@ -172,7 +157,7 @@ export default function DemoPage() {
                       required
                       value={formData.phone}
                       onChange={(e) => handleChange("phone", e.target.value)}
-                      className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
+                      className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
                       placeholder="+27 XX XXX XXXX"
                     />
                   </div>
@@ -186,48 +171,53 @@ export default function DemoPage() {
                       required
                       value={formData.company}
                       onChange={(e) => handleChange("company", e.target.value)}
-                      className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
+                      className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40"
                       placeholder="Your Building Company"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="companySize" className="text-[#EDE7C7]">
-                      Company Size *
+                    <Label htmlFor="projects" className="text-[#EDE7C7]">
+                      Projects Per Year *
                     </Label>
-                    <Select value={formData.companySize} onValueChange={(value) => handleChange("companySize", value)}>
-                      <SelectTrigger className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7]">
-                        <SelectValue placeholder="Select company size" />
+                    <Select
+                      value={formData.projectsPerYear}
+                      onValueChange={(value) => handleChange("projectsPerYear", value)}
+                      required
+                    >
+                      <SelectTrigger className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7]">
+                        <SelectValue placeholder="Select range" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#200E01] border-[#C41E3A]/30">
-                        <SelectItem value="1-10" className="text-[#EDE7C7]">
-                          1-10 employees
+                      <SelectContent className="bg-[#200E01] border-[#8B0000]/30">
+                        <SelectItem value="1-5" className="text-[#EDE7C7]">
+                          1-5 projects
                         </SelectItem>
-                        <SelectItem value="11-50" className="text-[#EDE7C7]">
-                          11-50 employees
+                        <SelectItem value="6-15" className="text-[#EDE7C7]">
+                          6-15 projects
                         </SelectItem>
-                        <SelectItem value="51-200" className="text-[#EDE7C7]">
-                          51-200 employees
+                        <SelectItem value="16-30" className="text-[#EDE7C7]">
+                          16-30 projects
                         </SelectItem>
-                        <SelectItem value="200+" className="text-[#EDE7C7]">
-                          200+ employees
+                        <SelectItem value="30+" className="text-[#EDE7C7]">
+                          30+ projects
                         </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="currentChallenges" className="text-[#EDE7C7]">
-                      Current Challenges *
+                    <Label htmlFor="interest" className="text-[#EDE7C7]">
+                      Primary Interest *
                     </Label>
                     <Select
-                      value={formData.currentChallenges}
-                      onValueChange={(value) => handleChange("currentChallenges", value)}
+                      value={formData.interest}
+                      onValueChange={(value) => handleChange("interest", value)}
+                      required
                     >
-                      <SelectTrigger className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7]">
-                        <SelectValue placeholder="Select your main challenge" />
+                      <SelectTrigger className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7]">
+                        <SelectValue placeholder="Select your main interest" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#200E01] border-[#C41E3A]/30">
+                      <SelectContent className="bg-[#200E01] border-[#8B0000]/30">
                         <SelectItem value="lead-qualification" className="text-[#EDE7C7]">
                           Lead Qualification
                         </SelectItem>
@@ -241,60 +231,10 @@ export default function DemoPage() {
                           Cost Estimation
                         </SelectItem>
                         <SelectItem value="all" className="text-[#EDE7C7]">
-                          Multiple Challenges
+                          All Solutions
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="preferredDate" className="text-[#EDE7C7]">
-                        Preferred Date *
-                      </Label>
-                      <Input
-                        id="preferredDate"
-                        type="date"
-                        required
-                        value={formData.preferredDate}
-                        onChange={(e) => handleChange("preferredDate", e.target.value)}
-                        className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7]"
-                        min={new Date().toISOString().split("T")[0]}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="preferredTime" className="text-[#EDE7C7]">
-                        Preferred Time *
-                      </Label>
-                      <Select
-                        value={formData.preferredTime}
-                        onValueChange={(value) => handleChange("preferredTime", value)}
-                      >
-                        <SelectTrigger className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7]">
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#200E01] border-[#C41E3A]/30">
-                          <SelectItem value="09:00" className="text-[#EDE7C7]">
-                            09:00 AM
-                          </SelectItem>
-                          <SelectItem value="10:00" className="text-[#EDE7C7]">
-                            10:00 AM
-                          </SelectItem>
-                          <SelectItem value="11:00" className="text-[#EDE7C7]">
-                            11:00 AM
-                          </SelectItem>
-                          <SelectItem value="14:00" className="text-[#EDE7C7]">
-                            02:00 PM
-                          </SelectItem>
-                          <SelectItem value="15:00" className="text-[#EDE7C7]">
-                            03:00 PM
-                          </SelectItem>
-                          <SelectItem value="16:00" className="text-[#EDE7C7]">
-                            04:00 PM
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -305,7 +245,7 @@ export default function DemoPage() {
                       id="message"
                       value={formData.message}
                       onChange={(e) => handleChange("message", e.target.value)}
-                      className="bg-[#200E01]/50 border-[#C41E3A]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40 min-h-[100px]"
+                      className="bg-[#200E01]/50 border-[#8B0000]/30 text-[#EDE7C7] placeholder:text-[#EDE7C7]/40 min-h-[100px]"
                       placeholder="Tell us about your specific needs or challenges..."
                     />
                   </div>
@@ -313,7 +253,7 @@ export default function DemoPage() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-6 text-lg bg-gradient-to-r from-[#C41E3A] to-[#5B0202] text-[#EDE7C7] rounded-full font-semibold hover:scale-105 hover:shadow-lg hover:shadow-[#C41E3A]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-6 text-lg bg-gradient-to-r from-[#8B0000] to-[#5B0202] text-[#EDE7C7] rounded-full font-semibold hover:scale-105 hover:shadow-lg hover:shadow-[#8B0000]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? "Submitting..." : "Schedule Demo"}
                   </Button>
@@ -323,13 +263,13 @@ export default function DemoPage() {
 
             {/* Info Section */}
             <div className="space-y-8">
-              <Card className="bg-[#5B0202]/10 backdrop-blur-md border-[#C41E3A]/20">
+              <Card className="bg-[#5B0202]/10 backdrop-blur-md border-[#8B0000]/20">
                 <CardHeader>
                   <CardTitle className="text-2xl text-[#EDE7C7]">What to Expect</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-[#EDE7C7]/80">
                   <div className="flex gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#C41E3A] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#8B0000] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
                       1
                     </div>
                     <div>
@@ -338,7 +278,7 @@ export default function DemoPage() {
                     </div>
                   </div>
                   <div className="flex gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#C41E3A] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#8B0000] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
                       2
                     </div>
                     <div>
@@ -347,7 +287,7 @@ export default function DemoPage() {
                     </div>
                   </div>
                   <div className="flex gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#C41E3A] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#8B0000] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
                       3
                     </div>
                     <div>
@@ -356,7 +296,7 @@ export default function DemoPage() {
                     </div>
                   </div>
                   <div className="flex gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#C41E3A] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#8B0000] to-[#5B0202] rounded-full flex items-center justify-center flex-shrink-0 text-xl">
                       4
                     </div>
                     <div>
@@ -367,7 +307,7 @@ export default function DemoPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-[#5B0202]/10 backdrop-blur-md border-[#C41E3A]/20">
+              <Card className="bg-[#5B0202]/10 backdrop-blur-md border-[#8B0000]/20">
                 <CardHeader>
                   <CardTitle className="text-2xl text-[#EDE7C7]">Demo Details</CardTitle>
                 </CardHeader>
@@ -403,14 +343,14 @@ export default function DemoPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-[#C41E3A]/20 to-[#5B0202]/10 backdrop-blur-md border-[#C41E3A]/30">
+              <Card className="bg-gradient-to-br from-[#8B0000]/20 to-[#5B0202]/10 backdrop-blur-md border-[#8B0000]/30">
                 <CardContent className="p-6 text-center">
                   <div className="text-4xl mb-3">📞</div>
                   <h3 className="text-xl font-bold text-[#EDE7C7] mb-2">Prefer to Talk Now?</h3>
                   <p className="text-[#EDE7C7]/80 mb-4">Call us directly for immediate assistance</p>
                   <a
                     href="tel:+27123456789"
-                    className="text-2xl font-bold text-[#C41E3A] hover:text-[#C41E3A]/80 transition-colors"
+                    className="text-2xl font-bold text-[#8B0000] hover:text-[#8B0000]/80 transition-colors"
                   >
                     +27 12 345 6789
                   </a>
