@@ -76,7 +76,7 @@ export default function HomePage() {
             style={{ willChange: "transform, opacity" }}
           >
             <Spline
-              scene="https://prod.spline.design/ds6liaWfJMl9f7OX/scene.splinecode"
+              scene="https://my.spline.design/backlightbgeffect-YSsXWXAvzv6OHHfhLGRkXUWB/"
               onLoad={() => {
                 setSpline1Loaded(true)
               }}
