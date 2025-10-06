@@ -192,18 +192,6 @@ export default function HomePage() {
                       }}
                     />
                   </div>
-                  <div
-                    className="absolute top-[20%] -left-12 px-5 py-4 bg-[#C41E3A]/10 backdrop-blur-md border border-[#C41E3A]/30 rounded-2xl gpu-accelerated"
-                    style={{ animation: "float 6s infinite ease-in-out" }}
-                  >
-                    <div className="text-sm font-semibold">24/7 AI Support</div>
-                  </div>
-                  <div
-                    className="absolute bottom-[30%] -right-12 px-5 py-4 bg-[#C41E3A]/10 backdrop-blur-md border border-[#C41E3A]/30 rounded-2xl gpu-accelerated"
-                    style={{ animation: "float 6s infinite ease-in-out 2s" }}
-                  >
-                    <div className="text-sm font-semibold">Smart Automation</div>
-                  </div>
                 </div>
               </div>
             </section>
