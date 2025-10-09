@@ -1,48 +1,36 @@
-import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, TrendingUp, Clock, CheckCircle } from "lucide-react"
-import { RecentLeads } from "@/components/dashboard/recent-leads"
+import { MessageSquare, Phone, TrendingUp, Clock } from "lucide-react"
+import { RecentActivity } from "@/components/dashboard/recent-activity"
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-
-  // Fetch leads data
-  const { data: leads } = await supabase.from("leads").select("*").order("created_at", { ascending: false })
-
-  const totalLeads = leads?.length || 0
-  const newLeads = leads?.filter((lead) => lead.status === "new").length || 0
-  const contactedLeads = leads?.filter((lead) => lead.status === "contacted").length || 0
-  const convertedLeads = leads?.filter((lead) => lead.status === "converted").length || 0
-
-  // Calculate this week's leads
-  const oneWeekAgo = new Date()
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-  const thisWeekLeads = leads?.filter((lead) => new Date(lead.created_at) > oneWeekAgo).length || 0
-
   const stats = [
     {
-      title: "Total Leads",
-      value: totalLeads,
-      icon: Users,
-      description: `${thisWeekLeads} new this week`,
+      title: "Total Conversations",
+      value: 1247,
+      icon: MessageSquare,
+      description: "+89 from last week",
+      trend: "+7.2%",
     },
     {
-      title: "New Leads",
-      value: newLeads,
+      title: "Voice Calls",
+      value: 342,
+      icon: Phone,
+      description: "+23 from last week",
+      trend: "+6.7%",
+    },
+    {
+      title: "Avg Response Time",
+      value: "1.2s",
       icon: Clock,
-      description: "Awaiting contact",
+      description: "0.3s faster",
+      trend: "-20%",
     },
     {
-      title: "Contacted",
-      value: contactedLeads,
+      title: "Resolution Rate",
+      value: "94%",
       icon: TrendingUp,
-      description: "In progress",
-    },
-    {
-      title: "Converted",
-      value: convertedLeads,
-      icon: CheckCircle,
-      description: "Successfully closed",
+      description: "+2% from last week",
+      trend: "+2.1%",
     },
   ]
 
@@ -50,7 +38,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-[#EDE7C7]">Overview</h2>
-        <p className="text-[#EDE7C7]/60 mt-2">Welcome back! Here's what's happening with your leads.</p>
+        <p className="text-[#EDE7C7]/60 mt-2">Welcome back! Here's your chatbot performance summary.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -68,7 +56,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <RecentLeads leads={leads?.slice(0, 5) || []} />
+      <RecentActivity />
     </div>
   )
 }
