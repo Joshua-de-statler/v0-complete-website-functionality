@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "Transform your custom home building operations with exclusive AI agents designed for South Africa's most prestigious builders.",
   generator: "v0.app",
+  icons: {
+    icon: '/favicon.png', // Or '/favicon.png'
+  },
 }
 
 export default function RootLayout({
