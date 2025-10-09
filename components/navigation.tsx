@@ -4,10 +4,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/client"
+import type { User } from "@supabase/supabase-js"
 
 export function Navigation() {
   const pathname = usePathname()
   const [scrolled, setScrolled] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,6 +18,22 @@ export function Navigation() {
     }
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   return (
@@ -62,11 +81,29 @@ export function Navigation() {
           >
             Pricing
           </Link>
-          <Link href="/demo">
-            <Button className="px-7 py-3 bg-gradient-to-r from-[#8B0000] to-[#5B0202] text-[#EDE7C7] rounded-full font-semibold hover:scale-105 hover:shadow-lg hover:shadow-[#8B0000]/30 transition-all">
-              Book Demo
-            </Button>
-          </Link>
+          {user && (
+            <Link
+              href="/dashboard"
+              className={`text-[#EDE7C7] text-base font-medium relative transition-colors hover:text-[#EDE7C7]/80 after:absolute after:bottom-[-5px] after:left-0 after:w-0 after:h-[2px] after:bg-[#8B0000] after:transition-all hover:after:w-full ${
+                pathname.startsWith("/dashboard") ? "after:w-full" : ""
+              }`}
+            >
+              Dashboard
+            </Link>
+          )}
+          {user ? (
+            <Link href="/demo">
+              <Button className="px-7 py-3 bg-gradient-to-r from-[#8B0000] to-[#5B0202] text-[#EDE7C7] rounded-full font-semibold hover:scale-105 hover:shadow-lg hover:shadow-[#8B0000]/30 transition-all">
+                Book Demo
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/auth/login">
+              <Button className="px-7 py-3 bg-gradient-to-r from-[#8B0000] to-[#5B0202] text-[#EDE7C7] rounded-full font-semibold hover:scale-105 hover:shadow-lg hover:shadow-[#8B0000]/30 transition-all">
+                Login
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </nav>
