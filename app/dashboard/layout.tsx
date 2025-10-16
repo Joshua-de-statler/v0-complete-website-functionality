@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { CompanyProvider } from "@/components/dashboard/company-provider"
-import { Toaster } from "@/components/ui/toaster" // IMPORT THE TOASTER
+import { Toaster } from "@/components/ui/toaster" // IMPORT THE CORRECT TOASTER
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -36,7 +36,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("id", companyUser.company_id)
     .single()
 
-
   return (
     <CompanyProvider company={company}>
         <div className="flex min-h-screen bg-[#0A0A0A]">
@@ -46,7 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <main className="flex-1 p-6 lg:p-8">{children}</main>
             </div>
         </div>
-        <Toaster /> {/* ADD THE TOASTER COMPONENT HERE */}
+        <Toaster /> {/* ADD THE TOASTER HERE */}
     </CompanyProvider>
   )
 }

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast" // CORRECTED IMPORT
 import { useCompany } from "@/components/dashboard/company-provider"
 
 interface ProfileSettingsProps {
@@ -16,24 +16,33 @@ interface ProfileSettingsProps {
     id: string
     email?: string
   }
+  profile: {
+    full_name: string | null
+    company: string | null
+  } | null
 }
 
-export function ProfileSettings({ user }: ProfileSettingsProps) {
+export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
   const companyInfo = useCompany()
   const router = useRouter()
-  
+  const { toast } = useToast() // CORRECTED HOOK
+
+  const [fullName, setFullName] = useState(profile?.full_name || "")
   const [companyName, setCompanyName] = useState(companyInfo?.name || "")
   const [supabaseUrl, setSupabaseUrl] = useState(companyInfo?.supabase_url || "")
   const [supabaseAnonKey, setSupabaseAnonKey] = useState(companyInfo?.supabase_anon_key || "")
-  
   const [isUpdating, setIsUpdating] = useState(false)
 
-  const handleUpdateCompany = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUpdating(true)
 
     if (!companyInfo || !companyInfo.id) {
-      toast.error("Error: Company data not found. Please refresh.")
+      toast({
+        title: "Error",
+        description: "Could not find company information. Please refresh and try again.",
+        variant: "destructive",
+      })
       setIsUpdating(false)
       return;
     }
@@ -41,7 +50,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
     const supabase = createClient()
 
     try {
-      const { error } = await supabase
+      const { error: companyError } = await supabase
         .from("companies")
         .update({
           name: companyName,
@@ -51,29 +60,32 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
         })
         .eq("id", companyInfo.id)
         
-      if (error) {
-        // This will now throw a detailed error if RLS fails
-        throw error
-      }
+      if (companyError) throw companyError
 
-      toast.success("Settings updated successfully!")
+      toast({
+        title: "Success!",
+        description: "Your settings have been updated successfully.",
+      })
       router.refresh()
     } catch (error) {
-      console.error("Caught error:", error)
-      toast.error("Update Failed", {
-        description: (error as Error).message || "An unknown error occurred.",
+      const err = error as Error
+      toast({
+        title: "Update Failed",
+        description: err.message || "An unknown database error occurred.",
+        variant: "destructive",
       })
+      console.error(error)
     } finally {
       setIsUpdating(false)
     }
   }
 
   return (
-    <form onSubmit={handleUpdateCompany} className="grid gap-6">
+    <form onSubmit={handleUpdate} className="grid gap-6">
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
           <CardTitle className="text-[#EDE7C7]">Company & Database Settings</CardTitle>
-          <CardDescription className="text-[#EDE7C7]/60">Manage your company details and connect your bot's database.</CardDescription>
+          <CardDescription className="text-[#EDE7C7]/60">Manage company details and connect your bot's database.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
