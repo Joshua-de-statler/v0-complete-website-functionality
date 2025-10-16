@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast" // CORRECTED IMPORT
+import { useToast } from "@/hooks/use-toast"
 import { useCompany } from "@/components/dashboard/company-provider"
 
 interface ProfileSettingsProps {
@@ -25,21 +25,24 @@ interface ProfileSettingsProps {
 export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
   const companyInfo = useCompany()
   const router = useRouter()
-  const { toast } = useToast() // CORRECTED HOOK
-
-  const [fullName, setFullName] = useState(profile?.full_name || "")
+  const { toast } = useToast()
+  
   const [companyName, setCompanyName] = useState(companyInfo?.name || "")
   const [supabaseUrl, setSupabaseUrl] = useState(companyInfo?.supabase_url || "")
   const [supabaseAnonKey, setSupabaseAnonKey] = useState(companyInfo?.supabase_anon_key || "")
+  
   const [isUpdating, setIsUpdating] = useState(false)
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUpdating(true)
+    
+    // --- LOG 1: Log the data we are about to use ---
+    console.log("Attempting to save settings. Company Info:", companyInfo);
 
     if (!companyInfo || !companyInfo.id) {
       toast({
-        title: "Error",
+        title: "Frontend Error",
         description: "Could not find company information. Please refresh and try again.",
         variant: "destructive",
       })
@@ -50,31 +53,43 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     const supabase = createClient()
 
     try {
-      const { error: companyError } = await supabase
+      // --- LOG 2: Log the data being sent ---
+      const updates = {
+        name: companyName,
+        supabase_url: supabaseUrl,
+        supabase_anon_key: supabaseAnonKey,
+        updated_at: new Date().toISOString(),
+      };
+      console.log("Sending update to Supabase with data:", updates);
+
+      const { error } = await supabase
         .from("companies")
-        .update({
-          name: companyName,
-          supabase_url: supabaseUrl,
-          supabase_anon_key: supabaseAnonKey,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq("id", companyInfo.id)
         
-      if (companyError) throw companyError
+      if (error) {
+        // This will now throw the specific error from Supabase
+        throw error
+      }
 
       toast({
         title: "Success!",
         description: "Your settings have been updated successfully.",
       })
       router.refresh()
+
     } catch (error) {
-      const err = error as Error
+      // --- LOG 3: Log the entire error object from the backend ---
+      console.error("An error occurred during the update:", error);
+      
+      const err = error as any; // Cast as 'any' to inspect all properties
+      
       toast({
         title: "Update Failed",
-        description: err.message || "An unknown database error occurred.",
+        // Provide a detailed and fallback error message
+        description: err.message || `Error code: ${err.code}` || "An unknown database error occurred. Check the console for details.",
         variant: "destructive",
       })
-      console.error(error)
     } finally {
       setIsUpdating(false)
     }
