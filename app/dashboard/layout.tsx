@@ -4,10 +4,9 @@ import { redirect } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { CompanyProvider } from "@/components/dashboard/company-provider"
-import { Toaster } from "@/components/ui/toaster" // IMPORT THE TOASTER
+import { Toaster } from "@/components/ui/toaster"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // ... (rest of the data fetching logic remains the same)
   const supabase = await createClient()
   const {
     data: { user },
@@ -17,25 +16,39 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/auth/login")
   }
 
-  const { data: companyUser } = await supabase
+  // Fetch the user's link to a company
+  const { data: companyUser, error: companyUserError } = await supabase
     .from("company_users")
     .select("company_id")
     .eq("user_id", user.id)
     .single()
 
-  if (!companyUser) {
+  // New Error Check 1: Handle if the user is not linked to any company
+  if (companyUserError || !companyUser) {
+    console.error("Dashboard Layout Error: Could not find company link for user.", companyUserError);
     return (
         <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-[#EDE7C7]">
-            <p>Error: You are not associated with any company. Please contact support.</p>
+            <p>Error: Could not verify your company membership. Please contact support.</p>
         </div>
     )
   }
 
-  const { data: company } = await supabase
+  // Fetch the company's full details
+  const { data: company, error: companyError } = await supabase
     .from("companies")
     .select("*")
     .eq("id", companyUser.company_id)
     .single()
+
+  // New Error Check 2: Handle if the company details could not be fetched (likely an RLS issue)
+  if (companyError || !company) {
+    console.error("Dashboard Layout Error: Could not fetch company details.", companyError);
+     return (
+        <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-[#EDE7C7]">
+            <p>Error: Could not load company data. Please check permissions and contact support.</p>
+        </div>
+    )
+  }
 
   return (
     <CompanyProvider company={company}>
@@ -46,7 +59,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <main className="flex-1 p-6 lg:p-8">{children}</main>
             </div>
         </div>
-        <Toaster /> {/* ADD THE TOASTER COMPONENT HERE */}
+        <Toaster />
     </CompanyProvider>
   )
 }
