@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { useCompany } from "@/components/dashboard/company-provider" // Import the useCompany hook
+import { useCompany } from "@/components/dashboard/company-provider"
 
 interface ProfileSettingsProps {
   user: {
@@ -23,13 +23,10 @@ interface ProfileSettingsProps {
 }
 
 export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
-  const companyInfo = useCompany() // Get company data from context
+  const companyInfo = useCompany()
   const router = useRouter()
   
-  // State for profile info
   const [fullName, setFullName] = useState(profile?.full_name || "")
-  
-  // State for company info
   const [companyName, setCompanyName] = useState(companyInfo?.name || "")
   const [supabaseUrl, setSupabaseUrl] = useState(companyInfo?.supabase_url || "")
   const [supabaseAnonKey, setSupabaseAnonKey] = useState(companyInfo?.supabase_anon_key || "")
@@ -39,6 +36,15 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUpdating(true)
+
+    // --- Defensive Check ---
+    // Ensure we have company info before proceeding.
+    if (!companyInfo || !companyInfo.id) {
+      toast.error("Could not find company information. Please refresh and try again.")
+      setIsUpdating(false)
+      return;
+    }
+
     const supabase = createClient()
 
     try {
@@ -59,14 +65,17 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
           supabase_anon_key: supabaseAnonKey,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", companyInfo?.id)
+        .eq("id", companyInfo.id) // We now know companyInfo.id exists
         
       if (companyError) throw companyError
 
       toast.success("Settings updated successfully")
-      router.refresh() // Refresh the page to reflect changes
+      router.refresh()
     } catch (error) {
-      toast.error("Failed to update settings")
+      const err = error as Error
+      toast.error("Failed to update settings", {
+        description: err.message
+      })
       console.error(error)
     } finally {
       setIsUpdating(false)
@@ -75,7 +84,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
 
   return (
     <form onSubmit={handleUpdate} className="grid gap-6">
-      {/* Profile Information Card */}
+      {/* Cards remain the same */}
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
           <CardTitle className="text-[#EDE7C7]">User Profile</CardTitle>
@@ -93,7 +102,6 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
         </CardContent>
       </Card>
 
-      {/* Company & Database Settings Card */}
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
           <CardTitle className="text-[#EDE7C7]">Company & Database</CardTitle>
@@ -106,11 +114,11 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="supabaseUrl" className="text-[#EDE7C7]/80">Supabase URL</Label>
-            <Input id="supabaseUrl" type="url" value={supabaseUrl} onChange={(e) => setSupabaseUrl(e.target.value)} placeholder="https://<your-project-ref>.supabase.co" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
+            <Input id="supabaseUrl" type="url" value={supabaseUrl || ''} onChange={(e) => setSupabaseUrl(e.target.value)} placeholder="https://<your-project-ref>.supabase.co" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="supabaseAnonKey" className="text-[#EDE7C7]/80">Supabase Anon Key</Label>
-            <Input id="supabaseAnonKey" type="password" value={supabaseAnonKey} onChange={(e) => setSupabaseAnonKey(e.target.value)} placeholder="Enter your Supabase anon (public) key" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
+            <Input id="supabaseAnonKey" type="password" value={supabaseAnonKey || ''} onChange={(e) => setSupabaseAnonKey(e.target.value)} placeholder="Enter your Supabase anon (public) key" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
         </CardContent>
       </Card>
