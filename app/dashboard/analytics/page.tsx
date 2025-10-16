@@ -1,85 +1,120 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, MessageSquare, Phone, Clock, Target, Calendar } from "lucide-react"
+import { TrendingUp, MessageSquare, CheckCircle, Clock, Calendar, AlertTriangle } from "lucide-react"
+import { useCompanySupabase } from "@/lib/supabase/company-client"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
-export default async function AnalyticsPage() {
-  const metrics = {
-    totalConversations: 1247,
-    totalCalls: 342,
-    avgResponseTime: 1.2,
-    resolutionRate: 94,
-    monthlyConversations: 423,
-    monthlyCalls: 98,
+export default function AnalyticsPage() {
+  const companySupabase = useCompanySupabase()
+  const [isLoading, setIsLoading] = useState(true)
+  const [metrics, setMetrics] = useState({
+    totalConversations: 0,
+    totalMeetings: 0,
+    confirmedMeetings: 0,
+    pendingMeetings: 0,
+    confirmationRate: 0,
+  })
+
+  useEffect(() => {
+    async function fetchAnalytics() {
+      if (!companySupabase) {
+        setIsLoading(false)
+        return
+      }
+      setIsLoading(true)
+      try {
+        const convPromise = companySupabase.from("conversation_history").select('*', { count: 'exact', head: true });
+        const meetingsPromise = companySupabase.from("meetings").select("status");
+
+        const [convResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
+
+        if (convResult.error) throw convResult.error;
+        if (meetingsResult.error) throw meetingsResult.error;
+
+        const meetings = meetingsResult.data || [];
+        const totalMeetings = meetings.length;
+        const confirmed = meetings.filter(m => m.status === 'confirmed').length;
+        const pending = meetings.filter(m => m.status === 'pending_confirmation').length;
+        const confirmationRate = totalMeetings > 0 ? Math.round((confirmed / totalMeetings) * 100) : 0;
+
+        setMetrics({
+          totalConversations: convResult.count || 0,
+          totalMeetings: totalMeetings,
+          confirmedMeetings: confirmed,
+          pendingMeetings: pending,
+          confirmationRate: confirmationRate,
+        });
+
+      } catch (error) {
+        console.error("Error fetching analytics:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchAnalytics();
+  }, [companySupabase]);
+
+  if (!companySupabase) {
+     return (
+      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+        <CardContent className="pt-6">
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3>
+            <p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">
+              Please go to the settings page to connect your bot's database.
+            </p>
+            <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
+                <Link href="/dashboard/settings">Go to Settings</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
-  const conversationBreakdown = {
-    resolved: 876,
-    active: 234,
-    pending: 137,
+  if (isLoading) {
+    return <div>Loading analytics...</div>
   }
-
-  const callBreakdown = {
-    completed: 298,
-    missed: 44,
-  }
-
-  const hourlyActivity = [
-    { hour: "00:00", conversations: 12, calls: 3 },
-    { hour: "04:00", conversations: 8, calls: 2 },
-    { hour: "08:00", conversations: 145, calls: 28 },
-    { hour: "12:00", conversations: 198, calls: 42 },
-    { hour: "16:00", conversations: 167, calls: 35 },
-    { hour: "20:00", conversations: 89, calls: 18 },
-  ]
 
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-[#EDE7C7]">Analytics</h2>
-        <p className="text-[#EDE7C7]/60 mt-2">Track your chatbot performance and engagement metrics.</p>
+        <p className="text-[#EDE7C7]/60 mt-2">Performance and engagement metrics from your bot.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Resolution Rate</CardTitle>
-            <Target className="h-4 w-4 text-[#EDE7C7]/60" />
+            <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Conversations</CardTitle>
+            <MessageSquare className="h-4 w-4 text-[#EDE7C7]/60" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.resolutionRate}%</div>
-            <p className="text-xs text-[#EDE7C7]/60 mt-1">+2% from last month</p>
+            <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalConversations}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">This Month</CardTitle>
+            <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Meetings Booked</CardTitle>
             <Calendar className="h-4 w-4 text-[#EDE7C7]/60" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.monthlyConversations}</div>
-            <p className="text-xs text-[#EDE7C7]/60 mt-1">Conversations handled</p>
+            <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalMeetings}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Avg Response</CardTitle>
-            <Clock className="h-4 w-4 text-[#EDE7C7]/60" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.avgResponseTime}s</div>
-            <p className="text-xs text-[#EDE7C7]/60 mt-1">0.3s faster</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Growth</CardTitle>
+            <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Confirmation Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-[#EDE7C7]/60" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-[#EDE7C7]">+89</div>
-            <p className="text-xs text-[#EDE7C7]/60 mt-1">vs last week</p>
+            <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.confirmationRate}%</div>
           </CardContent>
         </Card>
       </div>
@@ -88,99 +123,27 @@ export default async function AnalyticsPage() {
         <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
           <CardHeader>
             <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Conversation Status
+              <CheckCircle className="h-5 w-5" />
+              Confirmed Meetings
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {Object.entries(conversationBreakdown).map(([status, count]) => {
-                const percentage = (count / metrics.totalConversations) * 100
-                return (
-                  <div key={status} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#EDE7C7] capitalize">{status}</span>
-                      <span className="text-[#EDE7C7]/60">
-                        {count} ({percentage.toFixed(0)}%)
-                      </span>
-                    </div>
-                    <div className="h-2 bg-[#0A0A0A] rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${
-                          status === "resolved" ? "bg-green-500" : status === "active" ? "bg-blue-500" : "bg-yellow-500"
-                        }`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+             <div className="text-4xl font-bold text-green-500">{metrics.confirmedMeetings}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
           <CardHeader>
             <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              Call Status
+              <Clock className="h-5 w-5" />
+              Pending Meetings
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {Object.entries(callBreakdown).map(([status, count]) => {
-                const percentage = (count / metrics.totalCalls) * 100
-                return (
-                  <div key={status} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#EDE7C7] capitalize">{status}</span>
-                      <span className="text-[#EDE7C7]/60">
-                        {count} ({percentage.toFixed(0)}%)
-                      </span>
-                    </div>
-                    <div className="h-2 bg-[#0A0A0A] rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${status === "completed" ? "bg-green-500" : "bg-red-500"}`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+             <div className="text-4xl font-bold text-yellow-500">{metrics.pendingMeetings}</div>
           </CardContent>
         </Card>
       </div>
-
-      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardHeader>
-          <CardTitle className="text-[#EDE7C7]">Activity by Time of Day</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {hourlyActivity.map((activity) => (
-              <div key={activity.hour} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[#EDE7C7]">{activity.hour}</span>
-                  <div className="flex items-center gap-4 text-[#EDE7C7]/60">
-                    <span className="flex items-center gap-1">
-                      <MessageSquare className="h-3 w-3" />
-                      {activity.conversations}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {activity.calls}
-                    </span>
-                  </div>
-                </div>
-                <div className="h-2 bg-[#0A0A0A] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#EDE7C7]" style={{ width: `${(activity.conversations / 200) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

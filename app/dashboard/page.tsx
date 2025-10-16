@@ -1,8 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageSquare, Phone, TrendingUp, Clock } from "lucide-react"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
+import { MessageSquare, CalendarCheck, TrendingUp, Clock } from "lucide-react"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
 import { AlertTriangle } from "lucide-react"
@@ -28,31 +27,38 @@ export default function DashboardPage() {
 
       setIsLoading(true)
       
-      // Fetch conversation count
-      const { count: conversationCount, error: convError } = await companySupabase
-        .from("conversation_history")
-        .select('*', { count: 'exact', head: true })
+      try {
+        // Fetch conversation count in parallel
+        const conversationPromise = companySupabase
+          .from("conversation_history")
+          .select('*', { count: 'exact', head: true })
 
-      // Fetch meetings stats
-      const { data: meetings, error: meetingsError } = await companySupabase
-        .from("meetings")
-        .select("status")
+        // Fetch meetings stats in parallel
+        const meetingsPromise = companySupabase
+          .from("meetings")
+          .select("status")
 
-      if (convError || meetingsError) {
-        console.error("Error fetching stats:", convError || meetingsError)
-      } else {
-        const confirmed = meetings?.filter(m => m.status === 'confirmed').length || 0
-        const pending = meetings?.filter(m => m.status === 'pending_confirmation').length || 0
+        const [conversationResult, meetingsResult] = await Promise.all([conversationPromise, meetingsPromise]);
+
+        if (conversationResult.error) throw conversationResult.error;
+        if (meetingsResult.error) throw meetingsResult.error;
+        
+        const meetings = meetingsResult.data || [];
+        const confirmed = meetings.filter(m => m.status === 'confirmed').length
+        const pending = meetings.filter(m => m.status === 'pending_confirmation').length
         
         setStats({
-          totalConversations: conversationCount || 0,
-          totalMeetings: meetings?.length || 0,
+          totalConversations: conversationResult.count || 0,
+          totalMeetings: meetings.length,
           confirmedMeetings: confirmed,
           pendingMeetings: pending,
         })
-      }
 
-      setIsLoading(false)
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     fetchStats()
@@ -79,7 +85,7 @@ export default function DashboardPage() {
 
   const statCards = [
     { title: "Total Conversations", value: stats.totalConversations, icon: MessageSquare },
-    { title: "Total Meetings Booked", value: stats.totalMeetings, icon: Phone },
+    { title: "Total Meetings Booked", value: stats.totalMeetings, icon: CalendarCheck },
     { title: "Confirmed Meetings", value: stats.confirmedMeetings, icon: TrendingUp },
     { title: "Pending Confirmation", value: stats.pendingMeetings, icon: Clock },
   ]
@@ -108,9 +114,7 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
-
-      {/* The RecentActivity component can be updated next to show conversation history */}
-      {/* <RecentActivity /> */}
+      {/* We can enhance RecentActivity in the next step */}
     </div>
   )
 }
