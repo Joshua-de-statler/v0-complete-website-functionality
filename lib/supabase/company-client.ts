@@ -1,18 +1,19 @@
 import { createClient } from "@supabase/supabase-js"
 import { useCompany } from "@/components/dashboard/company-provider"
+import { useMemo } from "react" // Import useMemo
 
 // This is a custom hook that creates a Supabase client for the current company
 export function useCompanySupabase() {
   const company = useCompany()
 
-  if (!company || !company.supabase_url || !company.supabase_anon_key) {
-    // This can happen if the company hasn't configured their credentials yet.
-    // We'll return null and handle this gracefully in the components.
-    return null
-  }
+  // useMemo will only re-run and create a new client if the company's URL or key changes.
+  const client = useMemo(() => {
+    if (!company || !company.supabase_url || !company.supabase_anon_key) {
+      return null
+    }
+    // Create and return a new Supabase client instance
+    return createClient(company.supabase_url, company.supabase_anon_key)
+  }, [company]) // The dependency array ensures this only runs when 'company' changes
 
-  // Create and return a new Supabase client instance using the company's credentials.
-  // Note: It's important to create this instance inside the hook or component
-  // to ensure it uses the correct, current company's credentials.
-  return createClient(company.supabase_url, company.supabase_anon_key)
+  return client
 }
