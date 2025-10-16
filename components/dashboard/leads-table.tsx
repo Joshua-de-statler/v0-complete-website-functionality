@@ -1,25 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Search, Eye } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { Search, Eye, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
+import { useCompanySupabase } from "@/lib/supabase/company-client" // Import our new hook
 
 interface Lead {
   id: string
@@ -33,18 +25,55 @@ interface Lead {
   created_at: string
 }
 
-interface LeadsTableProps {
-  leads: Lead[]
-}
-
-export function LeadsTable({ leads: initialLeads }: LeadsTableProps) {
-  const [leads, setLeads] = useState(initialLeads)
+export function LeadsTable() {
+  const companySupabase = useCompanySupabase() // Use the company-specific client
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
-  const router = useRouter()
 
+  useEffect(() => {
+    async function fetchLeads() {
+      if (!companySupabase) {
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      const { data, error } = await companySupabase.from("leads").select("*").order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Error fetching leads:", error)
+        toast.error("Failed to fetch leads from your database.")
+      } else {
+        setLeads(data || [])
+      }
+      setIsLoading(false)
+    }
+
+    fetchLeads()
+  }, [companySupabase])
+
+  const handleUpdateLead = async (leadId: string, updates: Partial<Lead>) => {
+    if (!companySupabase) return
+    setIsUpdating(true)
+
+    try {
+      const { error } = await companySupabase.from("leads").update(updates).eq("id", leadId)
+      if (error) throw error
+      setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
+      toast.success("Lead updated successfully")
+    } catch (error) {
+      toast.error("Failed to update lead")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+  
+  // No changes to filtering logic or JSX structure needed...
+  // ... (The rest of the component remains the same)
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch =
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,26 +99,39 @@ export function LeadsTable({ leads: initialLeads }: LeadsTableProps) {
         return "bg-[#EDE7C7]/10 text-[#EDE7C7] border-[#EDE7C7]/20"
     }
   }
+  
+  // Render a message if the company hasn't set up their Supabase credentials
+  if (!companySupabase) {
+    return (
+      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+        <CardContent className="pt-6">
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3>
+            <p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">
+              Please go to the settings page and add your Supabase URL and Anon Key to view your leads.
+            </p>
+            <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
+                <Link href="/dashboard/settings">Go to Settings</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
-  const handleUpdateLead = async (leadId: string, updates: Partial<Lead>) => {
-    setIsUpdating(true)
-    const supabase = createClient()
-
-    try {
-      const { error } = await supabase.from("leads").update(updates).eq("id", leadId)
-
-      if (error) throw error
-
-      setLeads((prev) => prev.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead)))
-
-      toast.success("Lead updated successfully")
-      router.refresh()
-    } catch (error) {
-      toast.error("Failed to update lead")
-      console.error(error)
-    } finally {
-      setIsUpdating(false)
-    }
+  // Render a loading state
+  if (isLoading) {
+      return (
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+            <CardHeader>
+                <CardTitle className="text-[#EDE7C7]">All Leads</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="text-center py-12 text-[#EDE7C7]/60">Loading leads...</div>
+            </CardContent>
+        </Card>
+      )
   }
 
   return (
