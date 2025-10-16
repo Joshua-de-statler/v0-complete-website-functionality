@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast" // CORRECTED IMPORT
+import { toast } from "sonner"
 import { useCompany } from "@/components/dashboard/company-provider"
 
 interface ProfileSettingsProps {
@@ -16,34 +16,24 @@ interface ProfileSettingsProps {
     id: string
     email?: string
   }
-  profile: {
-    full_name: string | null
-    company: string | null
-  } | null
 }
 
-export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
+export function ProfileSettings({ user }: ProfileSettingsProps) {
   const companyInfo = useCompany()
   const router = useRouter()
-  const { toast } = useToast() // CORRECTED HOOK USAGE
   
-  const [fullName, setFullName] = useState(profile?.full_name || "")
   const [companyName, setCompanyName] = useState(companyInfo?.name || "")
   const [supabaseUrl, setSupabaseUrl] = useState(companyInfo?.supabase_url || "")
   const [supabaseAnonKey, setSupabaseAnonKey] = useState(companyInfo?.supabase_anon_key || "")
   
   const [isUpdating, setIsUpdating] = useState(false)
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleUpdateCompany = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUpdating(true)
 
     if (!companyInfo || !companyInfo.id) {
-      toast({
-        title: "Error",
-        description: "Could not find company information. Please refresh and try again.",
-        variant: "destructive",
-      })
+      toast.error("Error: Company data not found. Please refresh.")
       setIsUpdating(false)
       return;
     }
@@ -51,14 +41,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     const supabase = createClient()
 
     try {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ full_name: fullName })
-        .eq("id", user.id)
-
-      if (profileError) throw profileError
-
-      const { error: companyError } = await supabase
+      const { error } = await supabase
         .from("companies")
         .update({
           name: companyName,
@@ -68,48 +51,28 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
         })
         .eq("id", companyInfo.id)
         
-      if (companyError) throw companyError
+      if (error) {
+        // This will now throw a detailed error if RLS fails
+        throw error
+      }
 
-      toast({
-        title: "Success!",
-        description: "Your settings have been updated successfully.",
-      })
+      toast.success("Settings updated successfully!")
       router.refresh()
     } catch (error) {
-      const err = error as Error
-      toast({
-        title: "Update Failed",
-        description: err.message,
-        variant: "destructive",
+      console.error("Caught error:", error)
+      toast.error("Update Failed", {
+        description: (error as Error).message || "An unknown error occurred.",
       })
-      console.error(error)
     } finally {
       setIsUpdating(false)
     }
   }
 
-  // The JSX form remains the same, no changes needed there.
   return (
-    <form onSubmit={handleUpdate} className="grid gap-6">
+    <form onSubmit={handleUpdateCompany} className="grid gap-6">
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
-          <CardTitle className="text-[#EDE7C7]">User Profile</CardTitle>
-          <CardDescription className="text-[#EDE7C7]/60">Update your personal information.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-[#EDE7C7]/80">Email</Label>
-            <Input id="email" type="email" value={user.email} disabled className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]/60" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="fullName" className="text-[#EDE7C7]/80">Full Name</Label>
-            <Input id="fullName" type="text" value={fullName || ''} onChange={(e) => setFullName(e.target.value)} placeholder="Enter your full name" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardHeader>
-          <CardTitle className="text-[#EDE7C7]">Company & Database</CardTitle>
+          <CardTitle className="text-[#EDE7C7]">Company & Database Settings</CardTitle>
           <CardDescription className="text-[#EDE7C7]/60">Manage your company details and connect your bot's database.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -123,13 +86,14 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="supabaseAnonKey" className="text-[#EDE7C7]/80">Supabase Anon Key</Label>
-            <Input id="supabaseAnonKey" type="password" value={supabaseAnonKey || ''} onChange={(e) => setSupabaseAnonKey(e.target.value)} placeholder="Enter your Supabase anon (public) key" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
+            <Input id="supabaseAnonKey" type="text" value={supabaseAnonKey || ''} onChange={(e) => setSupabaseAnonKey(e.target.value)} placeholder="Enter your Supabase anon (public) key" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
         </CardContent>
       </Card>
+      
       <div className="flex justify-end">
         <Button type="submit" disabled={isUpdating} className="bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-          {isUpdating ? "Saving..." : "Save All Settings"}
+          {isUpdating ? "Saving..." : "Save Settings"}
         </Button>
       </div>
     </form>
