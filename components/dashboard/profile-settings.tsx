@@ -8,28 +8,18 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast" // CORRECTED IMPORT
+import { useToast } from "@/hooks/use-toast"
 import { useCompany } from "@/components/dashboard/company-provider"
 
-interface ProfileSettingsProps {
-  user: {
-    id: string
-    email?: string
-  }
-  profile: {
-    full_name: string | null
-    company: string | null
-  } | null
-}
-
-export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
+export function ProfileSettings({ user, profile }: { user: any, profile: any }) {
   const companyInfo = useCompany()
   const router = useRouter()
-  const { toast } = useToast() // CORRECTED HOOK
-
+  const { toast } = useToast()
+  
   const [companyName, setCompanyName] = useState(companyInfo?.name || "")
   const [supabaseUrl, setSupabaseUrl] = useState(companyInfo?.supabase_url || "")
   const [supabaseAnonKey, setSupabaseAnonKey] = useState(companyInfo?.supabase_anon_key || "")
+  
   const [isUpdating, setIsUpdating] = useState(false)
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -82,8 +72,8 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     <form onSubmit={handleUpdate} className="grid gap-6">
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
-          <CardTitle className="text-[#EDE7C7]">Company & Database</CardTitle>
-          <CardDescription className="text-[#EDE7C7]/60">Manage your company details and connect your bot's database.</CardDescription>
+          <CardTitle className="text-[#EDE7C7]">Company & Database Settings</CardTitle>
+          <CardDescription className="text-[#EDE7C7]/60">Manage company details and connect your bot's database.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -91,7 +81,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
             <Input id="companyName" type="text" value={companyName || ''} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your Company Name" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="supabaseUrl" className="text-[#EDE7C7]/80">Supabase URL(. )( .)</Label>
+            <Label htmlFor="supabaseUrl" className="text-[#EDE7C7]/80">Supabase URL</Label>
             <Input id="supabaseUrl" type="url" value={supabaseUrl || ''} onChange={(e) => setSupabaseUrl(e.target.value)} placeholder="https://<your-project-ref>.supabase.co" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
           <div className="space-y-2">
