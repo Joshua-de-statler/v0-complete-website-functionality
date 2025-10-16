@@ -4,9 +4,10 @@ import { redirect } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { CompanyProvider } from "@/components/dashboard/company-provider"
-import { Toaster } from "@/components/ui/toaster" // IMPORT THE CORRECT TOASTER
+import { Toaster } from "@/components/ui/toaster" // IMPORT THE TOASTER
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  // ... (rest of the data fetching logic remains the same)
   const supabase = await createClient()
   const {
     data: { user },
@@ -45,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <main className="flex-1 p-6 lg:p-8">{children}</main>
             </div>
         </div>
-        <Toaster /> {/* ADD THE TOASTER HERE */}
+        <Toaster /> {/* ADD THE TOASTER COMPONENT HERE */}
     </CompanyProvider>
   )
 }

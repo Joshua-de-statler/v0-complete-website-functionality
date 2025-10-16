@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast" // CORRECTED IMPORT
 import { useCompany } from "@/components/dashboard/company-provider"
 
 interface ProfileSettingsProps {
@@ -25,25 +25,21 @@ interface ProfileSettingsProps {
 export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
   const companyInfo = useCompany()
   const router = useRouter()
-  const { toast } = useToast()
-  
+  const { toast } = useToast() // CORRECTED HOOK
+
   const [companyName, setCompanyName] = useState(companyInfo?.name || "")
   const [supabaseUrl, setSupabaseUrl] = useState(companyInfo?.supabase_url || "")
   const [supabaseAnonKey, setSupabaseAnonKey] = useState(companyInfo?.supabase_anon_key || "")
-  
   const [isUpdating, setIsUpdating] = useState(false)
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUpdating(true)
-    
-    // --- LOG 1: Log the data we are about to use ---
-    console.log("Attempting to save settings. Company Info:", companyInfo);
 
     if (!companyInfo || !companyInfo.id) {
       toast({
-        title: "Frontend Error",
-        description: "Could not find company information. Please refresh and try again.",
+        title: "Error",
+        description: "Company data not loaded. Please refresh the page.",
         variant: "destructive",
       })
       setIsUpdating(false)
@@ -53,41 +49,28 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     const supabase = createClient()
 
     try {
-      // --- LOG 2: Log the data being sent ---
-      const updates = {
-        name: companyName,
-        supabase_url: supabaseUrl,
-        supabase_anon_key: supabaseAnonKey,
-        updated_at: new Date().toISOString(),
-      };
-      console.log("Sending update to Supabase with data:", updates);
-
       const { error } = await supabase
         .from("companies")
-        .update(updates)
+        .update({
+          name: companyName,
+          supabase_url: supabaseUrl,
+          supabase_anon_key: supabaseAnonKey,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", companyInfo.id)
         
-      if (error) {
-        // This will now throw the specific error from Supabase
-        throw error
-      }
+      if (error) throw error
 
       toast({
         title: "Success!",
-        description: "Your settings have been updated successfully.",
+        description: "Your settings have been updated.",
       })
       router.refresh()
-
     } catch (error) {
-      // --- LOG 3: Log the entire error object from the backend ---
-      console.error("An error occurred during the update:", error);
-      
-      const err = error as any; // Cast as 'any' to inspect all properties
-      
+      const err = error as Error
       toast({
         title: "Update Failed",
-        // Provide a detailed and fallback error message
-        description: err.message || `Error code: ${err.code}` || "An unknown database error occurred. Check the console for details.",
+        description: err.message || "An unknown error occurred.",
         variant: "destructive",
       })
     } finally {
@@ -99,8 +82,8 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
     <form onSubmit={handleUpdate} className="grid gap-6">
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
-          <CardTitle className="text-[#EDE7C7]">Company & Database Settings</CardTitle>
-          <CardDescription className="text-[#EDE7C7]/60">Manage company details and connect your bot's database.</CardDescription>
+          <CardTitle className="text-[#EDE7C7]">Company & Database</CardTitle>
+          <CardDescription className="text-[#EDE7C7]/60">Manage your company details and connect your bot's database.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -108,7 +91,7 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
             <Input id="companyName" type="text" value={companyName || ''} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your Company Name" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="supabaseUrl" className="text-[#EDE7C7]/80">Supabase URL</Label>
+            <Label htmlFor="supabaseUrl" className="text-[#EDE7C7]/80">Supabase URL(. )( .)</Label>
             <Input id="supabaseUrl" type="url" value={supabaseUrl || ''} onChange={(e) => setSupabaseUrl(e.target.value)} placeholder="https://<your-project-ref>.supabase.co" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
           <div className="space-y-2">
