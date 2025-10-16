@@ -25,11 +25,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // New Error Check 1: Handle if the user is not linked to any company
   if (companyUserError || !companyUser) {
-    console.error("Dashboard Layout Error: Could not find company link for user.", companyUserError);
+    console.error("Dashboard Layout Error: Could not find company link for user.", companyUserError)
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-[#EDE7C7]">
-            <p>Error: Could not verify your company membership. Please contact support.</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-[#EDE7C7]">
+        <p>Error: Could not verify your company membership. Please contact support.</p>
+      </div>
     )
   }
 
@@ -42,24 +42,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // New Error Check 2: Handle if the company details could not be fetched (likely an RLS issue)
   if (companyError || !company) {
-    console.error("Dashboard Layout Error: Could not fetch company details.", companyError);
-     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-[#EDE7C7]">
-            <p>Error: Could not load company data. Please check permissions and contact support.</p>
-        </div>
+    console.error("Dashboard Layout Error: Could not fetch company details.", companyError)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-[#EDE7C7]">
+        <p>Error: Could not load company data. Please check permissions and contact support.</p>
+      </div>
     )
   }
 
   return (
     <CompanyProvider company={company}>
-        <div className="flex min-h-screen bg-[#0A0A0A]">
-            <DashboardSidebar />
-            <div className="flex-1 flex flex-col">
-                <DashboardHeader user={user} />
-                <main className="flex-1 p-6 lg:p-8">{children}</main>
-            </div>
+      <div className="flex h-screen bg-[#0A0A0A] overflow-hidden">
+        <DashboardSidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <DashboardHeader user={user} />
+          <main className="flex-1 overflow-y-auto bg-[#0A0A0A] p-6 lg:p-8">{children}</main>
         </div>
-        <Toaster />
+      </div>
+      <Toaster />
     </CompanyProvider>
   )
 }

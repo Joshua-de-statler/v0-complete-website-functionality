@@ -92,7 +92,7 @@ export default function CallsPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full flex flex-col">
       <div>
         <h2 className="text-3xl font-bold text-[#EDE7C7]">Voice Calls</h2>
         <p className="text-[#EDE7C7]/60 mt-2">Manage and review your voice call logs</p>
@@ -126,13 +126,13 @@ export default function CallsPage() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         {/* Call Logs List */}
-        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2">
-          <CardHeader>
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2 flex flex-col overflow-hidden">
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="text-[#EDE7C7]">Call History</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto">
             <div className="space-y-3">
               {filteredCalls.map((call) => (
                 <button
@@ -187,11 +187,11 @@ export default function CallsPage() {
         </Card>
 
         {/* Call Details */}
-        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-          <CardHeader>
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A] flex flex-col overflow-hidden">
+          <CardHeader className="flex-shrink-0">
             <CardTitle className="text-[#EDE7C7]">Call Details</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto">
             {selectedCall ? (
               <div className="space-y-6">
                 <div className="flex items-center gap-3">

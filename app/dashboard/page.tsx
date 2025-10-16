@@ -26,34 +26,31 @@ export default function DashboardPage() {
       }
 
       setIsLoading(true)
-      
+
       try {
         // Fetch conversation count in parallel
         const conversationPromise = companySupabase
           .from("conversation_history")
-          .select('*', { count: 'exact', head: true })
+          .select("*", { count: "exact", head: true })
 
         // Fetch meetings stats in parallel
-        const meetingsPromise = companySupabase
-          .from("meetings")
-          .select("status")
+        const meetingsPromise = companySupabase.from("meetings").select("status")
 
-        const [conversationResult, meetingsResult] = await Promise.all([conversationPromise, meetingsPromise]);
+        const [conversationResult, meetingsResult] = await Promise.all([conversationPromise, meetingsPromise])
 
-        if (conversationResult.error) throw conversationResult.error;
-        if (meetingsResult.error) throw meetingsResult.error;
-        
-        const meetings = meetingsResult.data || [];
-        const confirmed = meetings.filter(m => m.status === 'confirmed').length
-        const pending = meetings.filter(m => m.status === 'pending_confirmation').length
-        
+        if (conversationResult.error) throw conversationResult.error
+        if (meetingsResult.error) throw meetingsResult.error
+
+        const meetings = meetingsResult.data || []
+        const confirmed = meetings.filter((m) => m.status === "confirmed").length
+        const pending = meetings.filter((m) => m.status === "pending_confirmation").length
+
         setStats({
           totalConversations: conversationResult.count || 0,
           totalMeetings: meetings.length,
           confirmedMeetings: confirmed,
           pendingMeetings: pending,
         })
-
       } catch (error) {
         console.error("Error fetching dashboard stats:", error)
       } finally {
@@ -65,7 +62,7 @@ export default function DashboardPage() {
   }, [companySupabase])
 
   if (!companySupabase) {
-     return (
+    return (
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardContent className="pt-6">
           <div className="text-center py-12">
@@ -75,7 +72,7 @@ export default function DashboardPage() {
               Please go to the settings page and add your Supabase URL and Anon Key to view your dashboard.
             </p>
             <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-                <Link href="/dashboard/settings">Go to Settings</Link>
+              <Link href="/dashboard/settings">Go to Settings</Link>
             </Button>
           </div>
         </CardContent>
@@ -91,7 +88,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl">
       <div>
         <h2 className="text-3xl font-bold text-[#EDE7C7]">Overview</h2>
         <p className="text-[#EDE7C7]/60 mt-2">Here's your bot's performance summary.</p>

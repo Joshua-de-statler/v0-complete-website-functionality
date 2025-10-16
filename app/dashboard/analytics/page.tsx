@@ -26,19 +26,19 @@ export default function AnalyticsPage() {
       }
       setIsLoading(true)
       try {
-        const convPromise = companySupabase.from("conversation_history").select('*', { count: 'exact', head: true });
-        const meetingsPromise = companySupabase.from("meetings").select("status");
+        const convPromise = companySupabase.from("conversation_history").select("*", { count: "exact", head: true })
+        const meetingsPromise = companySupabase.from("meetings").select("status")
 
-        const [convResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
+        const [convResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise])
 
-        if (convResult.error) throw convResult.error;
-        if (meetingsResult.error) throw meetingsResult.error;
+        if (convResult.error) throw convResult.error
+        if (meetingsResult.error) throw meetingsResult.error
 
-        const meetings = meetingsResult.data || [];
-        const totalMeetings = meetings.length;
-        const confirmed = meetings.filter(m => m.status === 'confirmed').length;
-        const pending = meetings.filter(m => m.status === 'pending_confirmation').length;
-        const confirmationRate = totalMeetings > 0 ? Math.round((confirmed / totalMeetings) * 100) : 0;
+        const meetings = meetingsResult.data || []
+        const totalMeetings = meetings.length
+        const confirmed = meetings.filter((m) => m.status === "confirmed").length
+        const pending = meetings.filter((m) => m.status === "pending_confirmation").length
+        const confirmationRate = totalMeetings > 0 ? Math.round((confirmed / totalMeetings) * 100) : 0
 
         setMetrics({
           totalConversations: convResult.count || 0,
@@ -46,19 +46,18 @@ export default function AnalyticsPage() {
           confirmedMeetings: confirmed,
           pendingMeetings: pending,
           confirmationRate: confirmationRate,
-        });
-
+        })
       } catch (error) {
-        console.error("Error fetching analytics:", error);
+        console.error("Error fetching analytics:", error)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     }
-    fetchAnalytics();
-  }, [companySupabase]);
+    fetchAnalytics()
+  }, [companySupabase])
 
   if (!companySupabase) {
-     return (
+    return (
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardContent className="pt-6">
           <div className="text-center py-12">
@@ -68,7 +67,7 @@ export default function AnalyticsPage() {
               Please go to the settings page to connect your bot's database.
             </p>
             <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-                <Link href="/dashboard/settings">Go to Settings</Link>
+              <Link href="/dashboard/settings">Go to Settings</Link>
             </Button>
           </div>
         </CardContent>
@@ -81,7 +80,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl">
       <div>
         <h2 className="text-3xl font-bold text-[#EDE7C7]">Analytics</h2>
         <p className="text-[#EDE7C7]/60 mt-2">Performance and engagement metrics from your bot.</p>
@@ -128,7 +127,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-             <div className="text-4xl font-bold text-green-500">{metrics.confirmedMeetings}</div>
+            <div className="text-4xl font-bold text-green-500">{metrics.confirmedMeetings}</div>
           </CardContent>
         </Card>
 
@@ -140,7 +139,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-             <div className="text-4xl font-bold text-yellow-500">{metrics.pendingMeetings}</div>
+            <div className="text-4xl font-bold text-yellow-500">{metrics.pendingMeetings}</div>
           </CardContent>
         </Card>
       </div>
