@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MessageSquare, Phone, Clock } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const recentActivities = [
   {
@@ -49,6 +50,17 @@ const recentActivities = [
 ]
 
 export function RecentActivity() {
+  const router = useRouter()
+
+  const handleActivityClick = (activity: (typeof recentActivities)[0]) => {
+    console.log("[v0] Navigating to activity:", activity.id)
+    if (activity.type === "whatsapp") {
+      router.push("/dashboard/conversations")
+    } else {
+      router.push("/dashboard/calls")
+    }
+  }
+
   return (
     <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -65,6 +77,7 @@ export function RecentActivity() {
           {recentActivities.map((activity) => (
             <div
               key={activity.id}
+              onClick={() => handleActivityClick(activity)}
               className="flex items-start gap-4 p-3 rounded-lg hover:bg-[#2A2A2A]/50 transition-colors cursor-pointer"
             >
               <div className="mt-1">

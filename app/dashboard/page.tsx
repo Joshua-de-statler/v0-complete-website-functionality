@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { RecentActivity } from "@/components/dashboard/recent-activity"
 
 export default function DashboardPage() {
   const companySupabase = useCompanySupabase()
@@ -111,7 +112,7 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
-      {/* We can enhance RecentActivity in the next step */}
+      <RecentActivity />
     </div>
   )
 }

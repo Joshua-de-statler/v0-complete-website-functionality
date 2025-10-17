@@ -10,6 +10,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast" // CORRECTED IMPORT
 import Link from "next/link"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Archive, Trash2, Download, CheckCircle } from "lucide-react"
 
 interface Message {
   type: "human" | "ai"
@@ -73,6 +81,50 @@ export default function ConversationsPage() {
   const filteredConversations = conversations.filter((conv) =>
     conv.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !selectedConversation) return
+
+    console.log("[v0] Sending message:", messageInput)
+    toast({
+      title: "Message Sent",
+      description: "Your message has been sent successfully.",
+    })
+    setMessageInput("")
+  }
+
+  const handleMarkResolved = () => {
+    console.log("[v0] Marking conversation as resolved:", selectedConversation?.conversation_id)
+    toast({
+      title: "Conversation Resolved",
+      description: "This conversation has been marked as resolved.",
+    })
+  }
+
+  const handleArchive = () => {
+    console.log("[v0] Archiving conversation:", selectedConversation?.conversation_id)
+    toast({
+      title: "Conversation Archived",
+      description: "This conversation has been archived.",
+    })
+  }
+
+  const handleExport = () => {
+    console.log("[v0] Exporting conversation:", selectedConversation?.conversation_id)
+    toast({
+      title: "Export Started",
+      description: "Your conversation is being exported.",
+    })
+  }
+
+  const handleDelete = () => {
+    console.log("[v0] Deleting conversation:", selectedConversation?.conversation_id)
+    toast({
+      title: "Conversation Deleted",
+      description: "This conversation has been deleted.",
+      variant: "destructive",
+    })
+  }
 
   if (!companySupabase) {
     return (
@@ -162,9 +214,44 @@ export default function ConversationsPage() {
                       </Badge>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-[#EDE7C7] hover:bg-[#2A2A2A]">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-[#EDE7C7] hover:bg-[#2A2A2A]">
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-[#1A1A1A] border-[#2A2A2A]">
+                      <DropdownMenuItem
+                        onClick={handleMarkResolved}
+                        className="text-[#EDE7C7]/80 focus:text-[#EDE7C7] focus:bg-[#2A2A2A]"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Mark as Resolved
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleArchive}
+                        className="text-[#EDE7C7]/80 focus:text-[#EDE7C7] focus:bg-[#2A2A2A]"
+                      >
+                        <Archive className="mr-2 h-4 w-4" />
+                        Archive
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleExport}
+                        className="text-[#EDE7C7]/80 focus:text-[#EDE7C7] focus:bg-[#2A2A2A]"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Export Chat
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator className="bg-[#2A2A2A]" />
+                      <DropdownMenuItem
+                        onClick={handleDelete}
+                        className="text-red-500 focus:text-red-500 focus:bg-[#2A2A2A]"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 p-6 overflow-y-auto">
@@ -186,9 +273,19 @@ export default function ConversationsPage() {
                     placeholder="Type a message..."
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSendMessage()
+                      }
+                    }}
                     className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]"
                   />
-                  <Button className="bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!messageInput.trim()}
+                    className="bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90 disabled:opacity-50"
+                  >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>

@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { User, LogOut } from "lucide-react"
+import { User, LogOut, Settings } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface DashboardHeaderProps {
@@ -40,6 +40,14 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="bg-[#1A1A1A] border-[#2A2A2A]">
           <DropdownMenuLabel className="text-[#EDE7C7]">{user.email}</DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-[#2A2A2A]" />
+          <DropdownMenuItem
+            onClick={() => router.push("/dashboard/settings")}
+            className="text-[#EDE7C7]/80 focus:text-[#EDE7C7] focus:bg-[#2A2A2A]"
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </DropdownMenuItem>
           <DropdownMenuSeparator className="bg-[#2A2A2A]" />
           <DropdownMenuItem onClick={handleSignOut} className="text-[#EDE7C7]/80 focus:text-[#EDE7C7]">
             <LogOut className="mr-2 h-4 w-4" />
