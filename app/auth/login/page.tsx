@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,12 +28,23 @@ export default function LoginPage() {
         email,
         password,
       })
-      if (error) throw error
+      
+      if (error) {
+        // **IMPROVED ERROR HANDLING**
+        // Check for the specific unconfirmed email error
+        if (error.message.includes("Email not confirmed")) {
+          setError("Email not confirmed. Please check your inbox for the verification link.")
+        } else {
+          setError("Invalid login credentials. Please try again.")
+        }
+        setIsLoading(false) // Stop loading on error
+        return;
+      }
+
       router.push("/dashboard")
       router.refresh()
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
-    } finally {
+      setError(error instanceof Error ? error.message : "An unexpected error occurred.")
       setIsLoading(false)
     }
   }
