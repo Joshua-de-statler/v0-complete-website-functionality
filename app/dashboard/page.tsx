@@ -151,11 +151,11 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-[#EDE7C7]/60" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               {isLoading ? (
                 <div className="h-8 w-1/2 bg-[#2A2A2A] rounded-md animate-pulse" />
               ) : (
-                <div className="text-2xl font-bold text-[#EDE7C7]">{stat.value}</div>
+                <div className="text-2xl font-bold text-[#EDE7C7] leading-none">{stat.value}</div>
               )}
             </CardContent>
           </Card>
