@@ -93,33 +93,33 @@ export default function CallsPage() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div>
-        <h2 className="text-3xl font-bold text-[#EDE7C7]">Voice Calls</h2>
-        <p className="text-[#EDE7C7]/60 mt-2">Manage and review your voice call logs</p>
+      <div className="flex-shrink-0">
+        <h1 className="text-4xl font-bold text-[#EDE7C7] tracking-tight">Voice Calls</h1>
+        <p className="text-base text-[#EDE7C7]/70 mt-3">Manage and review your voice call logs.</p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 flex-shrink-0">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" />
           <Input
             placeholder="Search by name or phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]"
+            className="pl-9 bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7] h-11 text-sm"
           />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]">
+          <SelectTrigger className="w-full sm:w-[180px] bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7] h-11">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]">
-            <SelectItem value="all" className="text-[#EDE7C7]">
+            <SelectItem value="all" className="text-[#EDE7C7] text-sm">
               All Calls
             </SelectItem>
-            <SelectItem value="completed" className="text-[#EDE7C7]">
+            <SelectItem value="completed" className="text-[#EDE7C7] text-sm">
               Completed
             </SelectItem>
-            <SelectItem value="missed" className="text-[#EDE7C7]">
+            <SelectItem value="missed" className="text-[#EDE7C7] text-sm">
               Missed
             </SelectItem>
           </SelectContent>
@@ -129,10 +129,10 @@ export default function CallsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         {/* Call Logs List */}
         <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2 flex flex-col overflow-hidden">
-          <CardHeader className="flex-shrink-0">
-            <CardTitle className="text-[#EDE7C7]">Call History</CardTitle>
+          <CardHeader className="flex-shrink-0 pb-4">
+            <CardTitle className="text-xl font-semibold text-[#EDE7C7]">Call History</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto">
+          <CardContent className="flex-1 overflow-y-auto px-6 pb-6">
             <div className="space-y-3">
               {filteredCalls.map((call) => (
                 <button
@@ -145,35 +145,37 @@ export default function CallsPage() {
                   }`}
                 >
                   <div className="flex items-start gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7]">{call.avatar}</AvatarFallback>
+                    <Avatar className="h-12 w-12 flex-shrink-0">
+                      <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7] text-sm font-medium">
+                        {call.avatar}
+                      </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 text-left">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="font-medium text-[#EDE7C7]">{call.customer}</p>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <p className="font-semibold text-[#EDE7C7] text-sm">{call.customer}</p>
                         <Badge
                           variant="outline"
                           className={
                             call.status === "completed"
-                              ? "border-green-500/50 text-green-500"
-                              : "border-red-500/50 text-red-500"
+                              ? "border-green-500/50 text-green-500 text-xs"
+                              : "border-red-500/50 text-red-500 text-xs"
                           }
                         >
                           {call.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-[#EDE7C7]/60 mb-2">{call.phone}</p>
+                      <p className="text-sm text-[#EDE7C7]/60 mb-2.5">{call.phone}</p>
                       <div className="flex items-center gap-4 text-xs text-[#EDE7C7]/40">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           {call.type === "incoming" ? (
-                            <PhoneIncoming className="h-3 w-3" />
+                            <PhoneIncoming className="h-3.5 w-3.5" />
                           ) : (
-                            <PhoneOutgoing className="h-3 w-3" />
+                            <PhoneOutgoing className="h-3.5 w-3.5" />
                           )}
-                          <span>{call.type}</span>
+                          <span className="capitalize">{call.type}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" />
                           <span>{call.duration}</span>
                         </div>
                         <span>{call.time}</span>
@@ -188,36 +190,36 @@ export default function CallsPage() {
 
         {/* Call Details */}
         <Card className="bg-[#1A1A1A] border-[#2A2A2A] flex flex-col overflow-hidden">
-          <CardHeader className="flex-shrink-0">
-            <CardTitle className="text-[#EDE7C7]">Call Details</CardTitle>
+          <CardHeader className="flex-shrink-0 pb-4">
+            <CardTitle className="text-xl font-semibold text-[#EDE7C7]">Call Details</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto">
+          <CardContent className="flex-1 overflow-y-auto px-6 pb-6">
             {selectedCall ? (
               <div className="space-y-6">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7] text-lg">
+                    <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7] text-lg font-medium">
                       {selectedCall.avatar}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium text-[#EDE7C7]">{selectedCall.customer}</p>
-                    <p className="text-sm text-[#EDE7C7]/60">{selectedCall.phone}</p>
+                    <p className="font-semibold text-[#EDE7C7] text-base">{selectedCall.customer}</p>
+                    <p className="text-sm text-[#EDE7C7]/60 mt-1">{selectedCall.phone}</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3.5">
                   <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Date</span>
-                    <span className="text-[#EDE7C7]">{selectedCall.date}</span>
+                    <span className="text-[#EDE7C7] font-medium">{selectedCall.date}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Duration</span>
-                    <span className="text-[#EDE7C7]">{selectedCall.duration}</span>
+                    <span className="text-[#EDE7C7] font-medium">{selectedCall.duration}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Type</span>
-                    <span className="text-[#EDE7C7] capitalize">{selectedCall.type}</span>
+                    <span className="text-[#EDE7C7] font-medium capitalize">{selectedCall.type}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Status</span>
@@ -225,8 +227,8 @@ export default function CallsPage() {
                       variant="outline"
                       className={
                         selectedCall.status === "completed"
-                          ? "border-green-500/50 text-green-500"
-                          : "border-red-500/50 text-red-500"
+                          ? "border-green-500/50 text-green-500 text-xs"
+                          : "border-red-500/50 text-red-500 text-xs"
                       }
                     >
                       {selectedCall.status}
@@ -236,13 +238,13 @@ export default function CallsPage() {
 
                 {selectedCall.recording && (
                   <>
-                    <div className="pt-4 border-t border-[#2A2A2A]">
-                      <p className="text-sm font-medium text-[#EDE7C7] mb-3">Recording</p>
+                    <div className="pt-5 border-t border-[#2A2A2A]">
+                      <p className="text-sm font-semibold text-[#EDE7C7] mb-3">Recording</p>
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 border-[#2A2A2A] text-[#EDE7C7] hover:bg-[#2A2A2A] bg-transparent"
+                          className="flex-1 border-[#2A2A2A] text-[#EDE7C7] hover:bg-[#2A2A2A] bg-transparent h-10 text-sm"
                           onClick={() => {
                             setIsPlaying(!isPlaying)
                             console.log("[v0] Toggling playback:", !isPlaying)
@@ -263,7 +265,7 @@ export default function CallsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-[#2A2A2A] text-[#EDE7C7] hover:bg-[#2A2A2A] bg-transparent"
+                          className="border-[#2A2A2A] text-[#EDE7C7] hover:bg-[#2A2A2A] bg-transparent h-10"
                           onClick={() => console.log("[v0] Downloading recording")}
                         >
                           <Download className="h-4 w-4" />
@@ -271,17 +273,17 @@ export default function CallsPage() {
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-[#2A2A2A]">
-                      <p className="text-sm font-medium text-[#EDE7C7] mb-2">Transcript</p>
-                      <p className="text-sm text-[#EDE7C7]/60 leading-relaxed">{selectedCall.transcript}</p>
+                    <div className="pt-5 border-t border-[#2A2A2A]">
+                      <p className="text-sm font-semibold text-[#EDE7C7] mb-3">Transcript</p>
+                      <p className="text-sm text-[#EDE7C7]/70 leading-relaxed">{selectedCall.transcript}</p>
                     </div>
                   </>
                 )}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Phone className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
-                <p className="text-sm text-[#EDE7C7]/60">Select a call to view details</p>
+              <div className="text-center py-16">
+                <Phone className="h-16 w-16 text-[#EDE7C7]/20 mx-auto mb-4" />
+                <p className="text-base text-[#EDE7C7]/60">Select a call to view details</p>
               </div>
             )}
           </CardContent>
