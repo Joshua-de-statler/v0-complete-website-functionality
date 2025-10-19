@@ -9,182 +9,182 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Search, Eye, AlertTriangle, Calendar, Clock, User, Mail, Target as GoalIcon } from "lucide-react" // Added GoalIcon
+import { Search, Eye, AlertTriangle, Calendar, Clock, User, Mail, Target as GoalIcon, PhoneForwarded, ThumbsUp, ThumbsDown, DollarSign } from "lucide-react"
 import Link from "next/link"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast"
-import { format, parseISO } from 'date-fns' // Import parseISO for timestamp strings
+import { format, parseISO } from 'date-fns'
 
-// Interface matching the CORRECT 'meetings' table schema based on sample
-interface Meeting {
-  id: string;
+// Interface matching the 'call_history' table schema
+interface CallHistoryEntry {
+  id: number;
+  created_at: string;
   full_name: string | null;
   email: string | null;
-  company_name?: string | null; // Optional based on sample
-  start_time: string | null; // This is a timestamp string like "2025-10-20 09:00:00+00"
-  goal: string | null; // Using 'goal' instead of 'agenda'
-  status: string;
-  created_at: string;
-  // Other fields from sample can be added if needed: google_calendar_event_id, monthly_budget, client_number
+  company_name: string | null;
+  goal: string | null;
+  monthly_budget: number | null;
+  resulted_in_meeting: boolean | null;
+  disqualification_reason: string | null;
+  client_number: string | null;
+  call_duration_seconds: number | null;
 }
 
-export function LeadsTable() { // Renaming conceptually, file name stays
+// Renaming component conceptually, filename stays for now
+export function LeadsTable() {
   const companySupabase = useCompanySupabase();
   const { toast } = useToast();
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [callHistory, setCallHistory] = useState<CallHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [currentNotes, setCurrentNotes] = useState<string>("");
+  const [filterOption, setFilterOption] = useState("all"); // Filter state
+  const [selectedCall, setSelectedCall] = useState<CallHistoryEntry | null>(null);
+  const [currentNotes, setCurrentNotes] = useState<string>(""); // Client-side only notes
 
   useEffect(() => {
-    async function fetchMeetings() {
+    async function fetchCallHistory() {
       if (!companySupabase) {
-        setIsLoading(false); return;
+        setIsLoading(false);
+        console.log("CallHistoryTable: Company Supabase client is null.");
+        return;
       }
+      console.log("CallHistoryTable: Fetching data from 'call_history'...");
       setIsLoading(true);
       try {
-        // --- CORRECTED QUERY: Select existing columns ---
         const { data, error, count } = await companySupabase
-          .from("meetings")
-          // Select columns based on the sample row provided
-          .select("id, full_name, email, company_name, start_time, goal, status, created_at", { count: 'exact' })
+          .from("call_history")
+          .select("id, created_at, full_name, email, company_name, goal, monthly_budget, resulted_in_meeting, disqualification_reason, client_number, call_duration_seconds", { count: 'exact' })
           .order("created_at", { ascending: false });
 
         if (error) {
-          console.error("LeadsTable: Error fetching meetings:", error);
-          toast({ title: "Error", description: `Failed to fetch meetings: ${error.message}`, variant: "destructive" });
-          setMeetings([]);
+          console.error("CallHistoryTable: Error fetching call history:", error);
+          toast({ title: "Error", description: `Failed to fetch call history: ${error.message}`, variant: "destructive" });
+          setCallHistory([]);
         } else {
-          console.log(`LeadsTable: Successfully fetched ${count ?? 'unknown'} meetings.`);
-          console.log("LeadsTable: Raw data:", data);
-          setMeetings(data || []);
+          console.log(`CallHistoryTable: Successfully fetched ${count ?? 'unknown'} calls.`);
+          setCallHistory(data || []);
         }
       } catch (catchError) {
-          console.error("LeadsTable: Unexpected error during fetchMeetings:", catchError);
-          toast({ title: "Fetch Error", description: "An unexpected error occurred while fetching meetings.", variant: "destructive" });
-          setMeetings([]);
+          console.error("CallHistoryTable: Unexpected error during fetchCallHistory:", catchError);
+          toast({ title: "Fetch Error", description: "An unexpected error occurred while fetching call history.", variant: "destructive" });
+          setCallHistory([]);
       } finally {
         setIsLoading(false);
       }
     }
-    fetchMeetings();
+    fetchCallHistory();
   }, [companySupabase, toast]);
 
-  // Update meeting status (remains the same)
-  const handleUpdateMeetingStatus = async (meetingId: string, newStatus: string) => {
-    // ... update logic ...
-      if (!companySupabase) return;
-        setIsUpdating(true);
-        try {
-        const { error } = await companySupabase.from("meetings").update({ status: newStatus }).eq("id", meetingId);
-        if (error) throw error;
-        setMeetings((prev) => prev.map((m) => (m.id === meetingId ? { ...m, status: newStatus } : m)));
-        if (selectedMeeting?.id === meetingId) setSelectedMeeting(prev => prev ? {...prev, status: newStatus} : null);
-        toast({ title: "Success", description: "Meeting status updated." });
-        } catch (error) { const err = error as Error; toast({ title: "Error", description: `Failed to update status: ${err.message}`, variant: "destructive" }); }
-        finally { setIsUpdating(false); }
-  };
-
-  // Filter logic (adjusted for company_name)
-  const filteredMeetings = meetings.filter((meeting) => {
+  // Filter logic
+  const filteredCalls = callHistory.filter((call) => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      meeting.full_name?.toLowerCase().includes(searchLower) ||
-      meeting.email?.toLowerCase().includes(searchLower) ||
-      meeting.company_name?.toLowerCase().includes(searchLower); // Added company_name
-    const matchesStatus = statusFilter === "all" || meeting.status === statusFilter;
-    return matchesSearch && matchesStatus;
+      call.full_name?.toLowerCase().includes(searchLower) ||
+      call.email?.toLowerCase().includes(searchLower) ||
+      call.company_name?.toLowerCase().includes(searchLower);
+
+    const matchesFilter =
+        filterOption === "all" ||
+        (filterOption === "meeting_yes" && call.resulted_in_meeting === true) ||
+        (filterOption === "meeting_no" && call.resulted_in_meeting === false);
+
+    return matchesSearch && matchesFilter;
   });
 
-  // Status badge colors (remains the same)
-  const getStatusColor = (status: string) => { /* ... switch statement ... */
-    switch (status) { case "confirmed": return "bg-green-500/10 text-green-500 border-green-500/20"; case "pending_confirmation": return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"; case "cancelled": return "bg-red-500/10 text-red-500 border-red-500/20"; default: return "bg-[#EDE7C7]/10 text-[#EDE7C7] border-[#EDE7C7]/20"; }
-  };
+  // Helper to format duration
+  const formatDuration = (seconds: number | null): string => {
+      if (seconds === null || seconds === undefined) return "N/A";
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}m ${remainingSeconds}s`;
+  }
 
-  // Helper to format the start_time timestamp
-  const formatStartTime = (startTime: string | null): string => {
-      if (!startTime) return "N/A";
-      try {
-          // Parse the ISO-like string and format it
-          return format(parseISO(startTime.replace(' ', 'T')), 'MMM d, yyyy h:mm a'); // Example: Oct 20, 2025 9:00 AM
-      } catch (e) {
-          console.error("Error formatting start_time:", startTime, e);
-          return "Invalid Date"; // Fallback for invalid date strings
-      }
-  };
-
+  // Helper to format currency (assuming ZAR)
+   const formatBudget = (budget: number | null): string => {
+       if (budget === null || budget === undefined) return "N/A";
+       return `R ${budget.toLocaleString('en-ZA')}`; // Format for South Africa
+   }
 
   // --- RENDER LOGIC ---
-  if (!companySupabase && !isLoading) { /* ... Database not connected message ... */
-    return ( <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardContent className="pt-6"><div className="text-center py-12"><AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" /><h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3><p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">Please go to the settings page to connect your bot's database.</p><Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90"><Link href="/dashboard/settings">Go to Settings</Link></Button></div></CardContent></Card> );
+  if (!companySupabase && !isLoading) {
+    return ( /* ... Database not connected message ... */ <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardContent className="pt-6"><div className="text-center py-12"><AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" /><h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3><p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">Please go to the settings page to connect your bot's database.</p><Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90"><Link href="/dashboard/settings">Go to Settings</Link></Button></div></CardContent></Card> );
   }
-  if (isLoading) { /* ... Loading state ... */
-     return ( <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardHeader><CardTitle className="text-[#EDE7C7]">Meetings</CardTitle></CardHeader><CardContent><div className="text-center py-12 text-[#EDE7C7]/60">Loading meetings...</div></CardContent></Card> );
+  if (isLoading) {
+    return ( /* ... Loading state ... */ <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardHeader><CardTitle className="text-[#EDE7C7]">Call History</CardTitle></CardHeader><CardContent><div className="text-center py-12 text-[#EDE7C7]/60">Loading call history...</div></CardContent></Card> );
   }
 
   return (
     <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
       <CardHeader>
-        <CardTitle className="text-[#EDE7C7]">Meetings ({filteredMeetings.length})</CardTitle>
+        <CardTitle className="text-[#EDE7C7]">Call History ({filteredCalls.length})</CardTitle>
         <div className="flex flex-col sm:flex-row gap-4 mt-4">
-             {/* Search and Filter */}
-             <div className="relative flex-1"> <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" /> <Input placeholder="Search name, email, company..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" /> </div> <Select value={statusFilter} onValueChange={setStatusFilter}> <SelectTrigger className="w-full sm:w-[180px] bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]"><SelectValue placeholder="Filter by status" /></SelectTrigger> <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]"> <SelectItem value="all">All Status</SelectItem> <SelectItem value="confirmed">Confirmed</SelectItem> <SelectItem value="pending_confirmation">Pending</SelectItem> <SelectItem value="cancelled">Cancelled</SelectItem> </SelectContent> </Select>
+             {/* Search */}
+             <div className="relative flex-1"> <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" /> <Input placeholder="Search name, email, company..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" /> </div>
+             {/* Filter Dropdown */}
+             <Select value={filterOption} onValueChange={setFilterOption}>
+                <SelectTrigger className="w-full sm:w-[220px] bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]"> <SelectValue placeholder="Filter call results" /> </SelectTrigger>
+                <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]">
+                    <SelectItem value="all">All Calls</SelectItem>
+                    <SelectItem value="meeting_yes">Resulted in Meeting</SelectItem>
+                    <SelectItem value="meeting_no">Did Not Result in Meeting</SelectItem>
+                    {/* Add more filters later if needed, e.g., disqualification */}
+                </SelectContent>
+            </Select>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {meetings.length === 0 ? (
-            <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No meetings have been booked yet.</p>
-          ) : filteredMeetings.length === 0 ? (
-            <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No meetings match your current filters.</p>
+          {callHistory.length === 0 ? (
+            <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No call history found.</p>
+          ) : filteredCalls.length === 0 ? (
+            <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No calls match your current filters.</p>
           ) : (
-            filteredMeetings.map((meeting) => (
-              <div key={meeting.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A]">
-                {/* Meeting Row Display - Uses correct fields */}
+            filteredCalls.map((call) => (
+              <div key={call.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A]">
+                {/* Call Row Display */}
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <p className="font-medium text-[#EDE7C7]">{meeting.full_name || "N/A"}</p>
-                    <Badge className={getStatusColor(meeting.status)}>{meeting.status?.replace(/_/g, ' ') || 'Unknown'}</Badge>
+                    <p className="font-medium text-[#EDE7C7]">{call.full_name || "N/A"}</p>
+                    {call.resulted_in_meeting === true && <Badge className="bg-green-500/10 text-green-500 border-green-500/20"><ThumbsUp className="h-3 w-3 mr-1"/> Meeting</Badge>}
+                    {call.resulted_in_meeting === false && !call.disqualification_reason && <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20"><ThumbsDown className="h-3 w-3 mr-1"/> No Meeting</Badge>}
+                    {call.disqualification_reason && <Badge className="bg-red-500/10 text-red-500 border-red-500/20"><ThumbsDown className="h-3 w-3 mr-1"/> Disqualified</Badge>}
                   </div>
                   <div className="text-sm text-[#EDE7C7]/60 space-y-1">
-                    <p className="flex items-center gap-1.5"><Mail className="h-3 w-3 flex-shrink-0"/> {meeting.email || "N/A"}</p>
-                     {/* Display formatted start_time */}
-                    <p className="flex items-center gap-1.5"><Calendar className="h-3 w-3 flex-shrink-0"/> {formatStartTime(meeting.start_time)}</p>
+                    <p className="flex items-center gap-1.5"><Mail className="h-3 w-3 flex-shrink-0"/> {call.email || "N/A"}</p>
+                    {call.company_name && <p className="flex items-center gap-1.5"><User className="h-3 w-3 flex-shrink-0"/> {call.company_name}</p>}
                   </div>
                   <p className="text-xs text-[#EDE7C7]/40">
-                    Booked: {format(parseISO(meeting.created_at), 'MMM d, yyyy h:mm a')}
+                    {format(parseISO(call.created_at), 'MMM d, yyyy h:mm a')}
                   </p>
                 </div>
-                 {/* View Details Button and Dialog */}
-                <Dialog onOpenChange={(open) => setSelectedMeeting(open ? meeting : null)}>
+                 {/* View Details Button */}
+                <Dialog onOpenChange={(open) => setSelectedCall(open ? call : null)}>
                   <DialogTrigger asChild>
                      <Button variant="outline" size="sm" className="bg-[#EDE7C7]/5 border-[#EDE7C7]/20 text-[#EDE7C7] hover:bg-[#EDE7C7]/10"> <Eye className="h-4 w-4 mr-2" /> View Details </Button>
                   </DialogTrigger>
                   <DialogContent className="bg-[#1A1A1A] border-[#2A2A2A] max-w-lg">
-                     <DialogHeader> <DialogTitle className="text-[#EDE7C7]">Meeting Details</DialogTitle> <DialogDescription className="text-[#EDE7C7]/60">View meeting information and update status.</DialogDescription> </DialogHeader>
-                    {selectedMeeting && (
-                      <div className="space-y-6 pt-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                            {/* Display fields based on sample row */}
-                            <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Customer</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><User className="h-4 w-4"/> {selectedMeeting.full_name || "N/A"}</p> </div>
-                            <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Email</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><Mail className="h-4 w-4"/> {selectedMeeting.email || "N/A"}</p> </div>
-                             {selectedMeeting.company_name && <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Company</Label> <p className="text-[#EDE7C7]">{selectedMeeting.company_name}</p> </div>}
-                            <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Scheduled Time</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><Calendar className="h-4 w-4"/> {formatStartTime(selectedMeeting.start_time)}</p> </div>
-                             <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Booked On</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><Clock className="h-4 w-4"/> {format(parseISO(selectedMeeting.created_at), 'MMM d, yyyy h:mm a')}</p> </div>
+                     <DialogHeader> <DialogTitle className="text-[#EDE7C7]">Call Details</DialogTitle> <DialogDescription className="text-[#EDE7C7]/60">Detailed information about the call.</DialogDescription> </DialogHeader>
+                    {selectedCall && (
+                      <div className="space-y-6 pt-4 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Caller Name</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><User className="h-4 w-4"/> {selectedCall.full_name || "N/A"}</p> </div>
+                            <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Caller Email</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><Mail className="h-4 w-4"/> {selectedCall.email || "N/A"}</p> </div>
+                            {selectedCall.company_name && <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Company</Label> <p className="text-[#EDE7C7]">{selectedCall.company_name}</p> </div>}
+                            <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Call Time</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><Clock className="h-4 w-4"/> {format(parseISO(selectedCall.created_at), 'MMM d, yyyy h:mm a')}</p> </div>
+                            {selectedCall.call_duration_seconds !== null && <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Call Duration</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><Clock className="h-4 w-4"/> {formatDuration(selectedCall.call_duration_seconds)}</p> </div>}
+                            {selectedCall.monthly_budget !== null && <div className="space-y-1"> <Label className="text-[#EDE7C7]/80">Monthly Budget</Label> <p className="text-[#EDE7C7] flex items-center gap-2"><DollarSign className="h-4 w-4"/> {formatBudget(selectedCall.monthly_budget)}</p> </div>}
                         </div>
-                         {/* Display 'goal' instead of 'agenda' */}
-                         {selectedMeeting.goal && (
-                           <div>
-                            <Label className="text-[#EDE7C7]/80">Goal / Purpose</Label>
-                            <p className="text-[#EDE7C7] mt-1 text-sm bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">{selectedMeeting.goal}</p>
-                           </div>
+                        {selectedCall.goal && (
+                           <div> <Label className="text-[#EDE7C7]/80">Call Goal</Label> <p className="text-[#EDE7C7] mt-1 text-sm bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">{selectedCall.goal}</p> </div>
                          )}
-                         {/* Status Update */}
-                        <div> <Label htmlFor="meetingStatus" className="text-[#EDE7C7]/80">Update Status</Label> <Select value={selectedMeeting.status} onValueChange={(value) => handleUpdateMeetingStatus(selectedMeeting.id, value)} disabled={isUpdating}> <SelectTrigger className="mt-1 w-full bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]"> <SelectValue /> </SelectTrigger> <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]"> <SelectItem value="pending_confirmation">Pending Confirmation</SelectItem> <SelectItem value="confirmed">Confirmed</SelectItem> <SelectItem value="cancelled">Cancelled</SelectItem> </SelectContent> </Select> </div>
-                         {/* Notes */}
+                         <div className="space-y-1">
+                             <Label className="text-[#EDE7C7]/80">Resulted in Meeting?</Label>
+                             <p className={`text-base font-medium ${selectedCall.resulted_in_meeting ? 'text-green-500' : 'text-yellow-500'}`}>{selectedCall.resulted_in_meeting ? 'Yes' : 'No'}</p>
+                         </div>
+                         {selectedCall.disqualification_reason && (
+                           <div> <Label className="text-[#EDE7C7]/80">Disqualification Reason</Label> <p className="text-[#EDE7C7] mt-1 text-sm bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">{selectedCall.disqualification_reason}</p> </div>
+                         )}
+                        {/* Notes (client-side only) */}
                         <div> <Label htmlFor="notes" className="text-[#EDE7C7]/80">Notes (Not Saved)</Label> <Textarea id="notes" value={currentNotes} onChange={(e) => setCurrentNotes(e.target.value)} placeholder="Add temporary notes here..." className="mt-1 bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" rows={3}/> <p className="text-xs text-[#EDE7C7]/50 mt-1">Notes are for temporary reference only.</p> </div>
                       </div>
                     )}
