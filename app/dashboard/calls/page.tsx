@@ -5,15 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Phone, Clock, AlertTriangle, PhoneIncoming } from "lucide-react"
+import { Search, Phone, Clock, User, Mail, AlertTriangle, PhoneIncoming, ThumbsUp, ThumbsDown, DollarSign, Target as GoalIcon } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
+import { Label } from "@/components/ui/label" // <-- ADD THIS IMPORT
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast"
-import { format, parseISO } from "date-fns"
+import { format, parseISO } from 'date-fns'
 import Link from "next/link"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea" // Also import Textarea if needed for notes
 
 // Interface matching the 'call_history' table schema
 interface CallHistoryEntry {

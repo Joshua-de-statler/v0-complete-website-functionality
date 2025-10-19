@@ -11,6 +11,10 @@ import { Toaster } from "@/components/ui/toaster"
 import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = cookies() // Get the cookie store
+  const supabase = createClient(cookieStore) // Pass it to createClient
+
 function DashboardLayoutClient({
   children,
   user,
