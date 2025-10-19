@@ -1,20 +1,38 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, MessageSquare, CheckCircle, Clock, Calendar, AlertTriangle, BarChartHorizontal } from "lucide-react" // Added BarChartHorizontal
+import { TrendingUp, MessageSquare, CheckCircle, Clock, Calendar, AlertTriangle, PieChart as PieChartIcon, BarChartHorizontal } from "lucide-react"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 // Import Recharts components
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
 
-// Interface for the processed chart data
-interface MonthlyMeetingData {
-  month: string; // e.g., "Oct 2025"
-  total: number;
-  confirmed: number;
+// Interface for meeting status data (Pie Chart)
+interface MeetingStatusData {
+  name: string;
+  value: number;
 }
+// Interface for hourly activity data (Bar Chart)
+interface HourlyActivityData {
+    hour: string; // e.g., "08", "14"
+    meetings: number;
+}
+
+
+// Define colors for the pie chart segments
+const COLORS: { [key: string]: string } = {
+    confirmed: '#82ca9d',
+    pending_confirmation: '#ffc658',
+    cancelled: '#ff8042',
+    default: '#8884d8'
+};
+const STATUS_NAMES: { [key: string]: string } = {
+    confirmed: 'Confirmed',
+    pending_confirmation: 'Pending',
+    cancelled: 'Cancelled',
+};
 
 export default function AnalyticsPage() {
   const companySupabase = useCompanySupabase()
@@ -22,25 +40,22 @@ export default function AnalyticsPage() {
   const [metrics, setMetrics] = useState({
     totalConversations: 0,
     totalMeetings: 0,
-    confirmedMeetings: 0,
-    pendingMeetings: 0,
     confirmationRate: 0,
   })
-  // State specifically for the chart data
-  const [chartData, setChartData] = useState<MonthlyMeetingData[]>([])
+  const [meetingStatusData, setMeetingStatusData] = useState<MeetingStatusData[]>([])
+  // State for the new hourly chart
+  const [hourlyActivityData, setHourlyActivityData] = useState<HourlyActivityData[]>([])
 
   useEffect(() => {
     async function fetchAnalytics() {
       if (!companySupabase) {
         setIsLoading(false);
-        console.log("Analytics: Company Supabase client not available.");
         return;
       }
-      console.log("Analytics: Fetching data...");
       setIsLoading(true);
       try {
         const convPromise = companySupabase.from("conversation_history").select('*', { count: 'exact', head: true });
-        // Fetch created_at and status for processing
+        // Fetch created_at (for hourly chart) and status (for pie chart/KPIs)
         const meetingsPromise = companySupabase.from("meetings").select("created_at, status");
 
         const [convResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
@@ -51,52 +66,49 @@ export default function AnalyticsPage() {
         const meetings = meetingsResult.data || [];
         const totalMeetings = meetings.length;
         const confirmed = meetings.filter(m => m.status === 'confirmed').length;
-        const pending = meetings.filter(m => m.status === 'pending_confirmation').length;
         const confirmationRate = totalMeetings > 0 ? Math.round((confirmed / totalMeetings) * 100) : 0;
 
-        // --- Process data for the chart ---
-        const monthlyData: { [key: string]: { total: number; confirmed: number } } = {};
-        const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
-
+        // --- Process data for the Pie Chart ---
+        const statusCounts: { [key: string]: number } = {};
         meetings.forEach(meeting => {
-          const date = new Date(meeting.created_at);
-          // Handle potential invalid dates
-          if (isNaN(date.getTime())) {
-              console.warn("Invalid date found in meeting:", meeting);
-              return;
-          }
-          const monthKey = monthFormatter.format(date);
-
-          if (!monthlyData[monthKey]) {
-            monthlyData[monthKey] = { total: 0, confirmed: 0 };
-          }
-          monthlyData[monthKey].total += 1;
-          if (meeting.status === 'confirmed') {
-            monthlyData[monthKey].confirmed += 1;
-          }
+          const status = meeting.status || 'unknown';
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
         });
+        const pieDataArray: MeetingStatusData[] = Object.entries(statusCounts)
+          .map(([status, count]) => ({
+            name: STATUS_NAMES[status] || status.replace(/_/g,' ').replace(/\b\w/g, l => l.toUpperCase()),
+            value: count,
+          }))
+          .sort((a, b) => b.value - a.value);
+        setMeetingStatusData(pieDataArray);
+        // --- End Pie Chart processing ---
 
-        // Convert processed data into an array suitable for the chart, sorted chronologically
-        const chartDataArray = Object.entries(monthlyData)
-          .map(([month, data]) => ({ month, ...data }))
-          // Sort by date to ensure the chart makes chronological sense
-          .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
-        
-        console.log("Analytics: Processed chart data:", chartDataArray);
-        setChartData(chartDataArray);
-        // --- End chart data processing ---
+        // --- Process data for Hourly Bar Chart ---
+        const hourlyCounts: { [key: number]: number } = {};
+        meetings.forEach(meeting => {
+             const date = new Date(meeting.created_at);
+             if (isNaN(date.getTime())) return; // Skip invalid dates
+             const hour = date.getHours(); // Get hour (0-23)
+             hourlyCounts[hour] = (hourlyCounts[hour] || 0) + 1;
+        });
+        // Create data for all 24 hours, including those with 0 meetings
+        const hourlyDataArray: HourlyActivityData[] = Array.from({ length: 24 }, (_, i) => ({
+            hour: i.toString().padStart(2, '0'), // Format as "00", "01", ... "23"
+            meetings: hourlyCounts[i] || 0,
+        }));
+        console.log("Analytics: Processed Hourly Chart data:", hourlyDataArray);
+        setHourlyActivityData(hourlyDataArray);
+        // --- End Hourly Bar Chart processing ---
+
 
         setMetrics({
           totalConversations: convResult.count || 0,
           totalMeetings: totalMeetings,
-          confirmedMeetings: confirmed,
-          pendingMeetings: pending,
           confirmationRate: confirmationRate,
         });
 
       } catch (error) {
         console.error("Error fetching analytics:", error);
-         // Add toast notification if desired
       } finally {
         setIsLoading(false);
       }
@@ -104,24 +116,24 @@ export default function AnalyticsPage() {
     fetchAnalytics();
   }, [companySupabase]);
 
-  // Handle case where database is not connected
+  // --- Render logic ---
   if (!companySupabase && !isLoading) {
-     return (
-      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardContent className="pt-6">
-          <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3>
-            <p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">
-              Please go to the settings page to connect your bot's database.
-            </p>
-            <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-                <Link href="/dashboard/settings">Go to Settings</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
+     return ( /* ... Database not connected message ... */
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+            <CardContent className="pt-6">
+            <div className="text-center py-12">
+                <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3>
+                <p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">
+                 Please go to the settings page to connect your bot's database.
+                </p>
+                <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
+                    <Link href="/dashboard/settings">Go to Settings</Link>
+                </Button>
+            </div>
+            </CardContent>
+        </Card>
+     )
   }
 
   return (
@@ -131,101 +143,152 @@ export default function AnalyticsPage() {
         <p className="text-[#EDE7C7]/60 mt-2">Performance and engagement metrics from your bot.</p>
       </div>
 
-      {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {/* Show pulsing placeholders while loading */}
-            {[...Array(4)].map((_, i) => (
-                <Card key={i} className="bg-[#1A1A1A] border-[#2A2A2A]">
-                    <CardHeader className="pb-2"><div className="h-4 w-3/4 bg-[#2A2A2A] rounded animate-pulse"/></CardHeader>
-                    <CardContent><div className="h-8 w-1/2 bg-[#2A2A2A] rounded animate-pulse"/></CardContent>
-                </Card>
-            ))}
-        </div>
-      ) : (
+       {isLoading ? (
+            // Simple loading state
+            <div className="text-center py-12 text-[#EDE7C7]/60">Loading analytics...</div>
+       ) : (
         <>
-          {/* Top Stat Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Conversations</CardTitle>
-                <MessageSquare className="h-4 w-4 text-[#EDE7C7]/60" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalConversations}</div>
-              </CardContent>
-            </Card>
-             <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Meetings Booked</CardTitle>
-                <Calendar className="h-4 w-4 text-[#EDE7C7]/60" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalMeetings}</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Confirmation Rate</CardTitle>
-                <TrendingUp className="h-4 w-4 text-[#EDE7C7]/60" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.confirmationRate}%</div>
-                <p className="text-xs text-[#EDE7C7]/60 mt-1">{metrics.confirmedMeetings} confirmed</p>
-              </CardContent>
-            </Card>
-             <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Pending Confirmation</CardTitle>
-                <Clock className="h-4 w-4 text-[#EDE7C7]/60" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-500">{metrics.pendingMeetings}</div>
-              </CardContent>
-            </Card>
-          </div>
+            {/* Top Stat Cards */}
+            <div className="grid gap-4 md:grid-cols-3">
+                {/* ... Stat cards remain the same ... */}
+                 <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Conversations</CardTitle>
+                        <MessageSquare className="h-4 w-4 text-[#EDE7C7]/60" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalConversations}</div>
+                    </CardContent>
+                </Card>
+                 <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Meetings Booked</CardTitle>
+                        <Calendar className="h-4 w-4 text-[#EDE7C7]/60" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalMeetings}</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Confirmation Rate</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-[#EDE7C7]/60" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.confirmationRate}%</div>
+                        {/* More descriptive subtext */}
+                         <p className="text-xs text-[#EDE7C7]/60 mt-1">
+                            {metrics.totalMeetings > 0
+                                ? `${metrics.totalMeetings - meetingStatusData.find(s => s.name === 'Pending')?.value - meetingStatusData.find(s => s.name === 'Cancelled')?.value || 0} confirmed`
+                                : 'No meetings yet'}
+                         </p>
+                    </CardContent>
+                </Card>
+            </div>
 
-          {/* Meetings Over Time Chart */}
-          <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-            <CardHeader>
-              <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
-                <BarChartHorizontal className="h-5 w-5" />
-                Meetings Booked Over Time
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pl-2"> {/* Adjust padding for chart */}
-              <ResponsiveContainer width="100%" height={300}>
-                {chartData.length === 0 ? (
-                     <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available for chart.</div>
-                ) : (
-                    <BarChart data={chartData}>
-                    <XAxis
-                        dataKey="month"
-                        stroke="#EDE7C7"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                    />
-                    <YAxis
-                        stroke="#EDE7C7"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `${value}`} // Format Y-axis ticks if needed
-                    />
-                    <Tooltip
-                        cursor={{ fill: '#2A2A2A' }}
-                        contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', color: '#EDE7C7' }}
-                    />
-                    <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px' }}/>
-                    <Bar dataKey="total" name="Total Booked" fill="#8884d8" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="confirmed" name="Confirmed" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                )}
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+            {/* Charts Grid */}
+             <div className="grid gap-6 md:grid-cols-2">
+                {/* Meeting Status Breakdown Chart */}
+                <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+                    <CardHeader>
+                        <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
+                        <PieChartIcon className="h-5 w-5" />
+                        Meeting Status Breakdown
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                        <ResponsiveContainer width="100%" height={300}>
+                        {meetingStatusData.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available.</div>
+                        ) : (
+                            <PieChart>
+                                <Pie
+                                    data={meetingStatusData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    outerRadius={80}
+                                    innerRadius={50}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => { /* ... label logic ... */
+                                         const RADIAN = Math.PI / 180;
+                                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                        return percent > 0.05 ? (
+                                            <text x={x} y={y} fill="#EDE7C7" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
+                                            {`${(percent * 100).toFixed(0)}%`}
+                                            </text>
+                                        ) : null;
+                                    }}
+                                >
+                                    {meetingStatusData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[entry.name.toLowerCase().replace(/ /g,'_') as keyof typeof COLORS] || COLORS.default} stroke={COLORS[entry.name.toLowerCase().replace(/ /g,'_') as keyof typeof COLORS] || COLORS.default}/>
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    cursor={{ fill: 'rgba(42, 42, 42, 0.3)' }}
+                                    contentStyle={{ backgroundColor: 'rgba(26, 26, 26, 0.9)', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem' }}
+                                    itemStyle={{ color: '#EDE7C7' }}
+                                    formatter={(value: number, name: string) => [`${value} meetings`, name]}
+                                />
+                                <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px' }} />
+                            </PieChart>
+                        )}
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+
+                 {/* NEW: Hourly Activity Chart */}
+                 <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+                    <CardHeader>
+                        <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
+                        <BarChartHorizontal className="h-5 w-5" />
+                        Meetings Booked by Hour (SAST)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4 pl-2"> {/* Adjust padding */}
+                        <ResponsiveContainer width="100%" height={300}>
+                            {hourlyActivityData.reduce((sum, d) => sum + d.meetings, 0) === 0 ? ( // Check if there's any data
+                                <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available for hourly breakdown.</div>
+                            ) : (
+                                <BarChart data={hourlyActivityData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                    <CartesianGrid stroke="#2A2A2A" strokeDasharray="3 3" vertical={false}/>
+                                    <XAxis
+                                        dataKey="hour"
+                                        stroke="#EDE7C7"
+                                        fontSize={10}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => `${value}:00`} // Format hour label
+                                        interval={2} // Show every 3rd hour label
+                                        tick={{ fill: '#EDE7C7' }}
+                                    />
+                                    <YAxis
+                                        stroke="#EDE7C7"
+                                        fontSize={12}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        allowDecimals={false}
+                                        tick={{ fill: '#EDE7C7' }}
+                                        width={30}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: 'rgba(42, 42, 42, 0.3)' }}
+                                        contentStyle={{ backgroundColor: 'rgba(26, 26, 26, 0.9)', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem' }}
+                                        labelFormatter={(label) => `Hour: ${label}:00 - ${parseInt(label)+1}:00`}
+                                        formatter={(value: number) => [`${value} meetings`, "Meetings Booked"]}
+                                    />
+                                    <Bar dataKey="meetings" name="Meetings Booked" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            )}
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+            </div>
         </>
-      )}
+       )}
     </div>
   )
 }
