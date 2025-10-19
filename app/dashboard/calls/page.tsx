@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Phone, Play, Pause, Download, Clock, PhoneIncoming, PhoneOutgoing, User, Mail, AlertTriangle } from "lucide-react" // Added User, Mail, AlertTriangle
+import { Search, Phone, Clock, User, Mail, AlertTriangle, PhoneIncoming, ThumbsUp, ThumbsDown, DollarSign, Target as GoalIcon } from "lucide-react" // Added relevant icons
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { format, parseISO } from 'date-fns'
 import Link from "next/link"
 
-// Interface matching the 'call_history' table schema
+// Interface matching the 'call_history' table schema based on sample
 interface CallHistoryEntry {
   id: number;
   created_at: string;
@@ -37,8 +37,6 @@ export default function CallsPage() {
   // Filter state (e.g., by call outcome)
   const [filterOption, setFilterOption] = useState("all");
   const [selectedCall, setSelectedCall] = useState<CallHistoryEntry | null>(null);
-  // Remove isPlaying state as recordings aren't in schema
-  // const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     async function fetchCallHistory() {
@@ -51,7 +49,7 @@ export default function CallsPage() {
         const { data, error, count } = await companySupabase
           .from("call_history")
           .select("id, created_at, full_name, email, company_name, goal, monthly_budget, resulted_in_meeting, disqualification_reason, client_number, call_duration_seconds", { count: 'exact' })
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false }); // Show newest first
 
         if (error) {
           console.error("CallsPage: Error fetching call history:", error);
@@ -78,33 +76,39 @@ export default function CallsPage() {
     const matchesSearch =
       call.full_name?.toLowerCase().includes(searchLower) ||
       call.email?.toLowerCase().includes(searchLower) ||
-      call.client_number?.includes(searchQuery); // Search by phone number too
+      call.client_number?.includes(searchQuery) || // Search phone
+      call.company_name?.toLowerCase().includes(searchLower); // Search company
 
     const matchesFilter =
         filterOption === "all" ||
         (filterOption === "meeting_yes" && call.resulted_in_meeting === true) ||
-        (filterOption === "meeting_no" && call.resulted_in_meeting === false);
+        (filterOption === "meeting_no" && call.resulted_in_meeting === false && !call.disqualification_reason) || // Specifically no meeting, not disqualified
+        (filterOption === "disqualified" && !!call.disqualification_reason); // Check if reason exists
 
     return matchesSearch && matchesFilter;
   });
 
    // Helper to format duration
   const formatDuration = (seconds: number | null): string => {
-      if (seconds === null || seconds === undefined) return "--"; // Use "--" or similar for N/A in table
+      if (seconds === null || seconds === undefined) return "--";
       const minutes = Math.floor(seconds / 60);
       const remainingSeconds = seconds % 60;
       return `${minutes}m ${remainingSeconds}s`;
   }
 
-   // Badge for call outcome
+   // Badge for call outcome in the list
    const getOutcomeBadge = (call: CallHistoryEntry) => {
        if (call.resulted_in_meeting === true) {
-           return <Badge variant="outline" className="border-green-500/50 text-green-500">Meeting Booked</Badge>;
+           return <Badge variant="outline" className="border-green-500/50 text-green-500 text-xs">Meeting Booked</Badge>;
        }
        if (call.disqualification_reason) {
-           return <Badge variant="outline" className="border-red-500/50 text-red-500">Disqualified</Badge>;
+           return <Badge variant="outline" className="border-red-500/50 text-red-500 text-xs">Disqualified</Badge>;
        }
-       return <Badge variant="outline" className="border-yellow-500/50 text-yellow-500">No Meeting</Badge>;
+        // Check if resulted_in_meeting is explicitly false
+       if (call.resulted_in_meeting === false) {
+           return <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 text-xs">No Meeting</Badge>;
+       }
+       return <Badge variant="outline" className="border-gray-500/50 text-gray-500 text-xs">Unknown Outcome</Badge>; // Fallback
    }
 
   // --- RENDER LOGIC ---
@@ -120,15 +124,17 @@ export default function CallsPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
+        {/* Search Input */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" />
           <Input
-            placeholder="Search by name, email, or phone..."
+            placeholder="Search by name, email, phone, company..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]"
           />
         </div>
+         {/* Filter Dropdown */}
          <Select value={filterOption} onValueChange={setFilterOption}>
             <SelectTrigger className="w-full sm:w-[220px] bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]">
                 <SelectValue placeholder="Filter call results" />
@@ -137,7 +143,7 @@ export default function CallsPage() {
                 <SelectItem value="all">All Calls</SelectItem>
                 <SelectItem value="meeting_yes">Resulted in Meeting</SelectItem>
                 <SelectItem value="meeting_no">Did Not Result in Meeting</SelectItem>
-                 {/* Add filter for disqualified? */}
+                <SelectItem value="disqualified">Disqualified</SelectItem>
             </SelectContent>
         </Select>
       </div>
@@ -146,7 +152,7 @@ export default function CallsPage() {
         {/* Call Logs List */}
         <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-[#EDE7C7]">Call History</CardTitle>
+            <CardTitle className="text-[#EDE7C7]">Call History ({filteredCalls.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -171,29 +177,27 @@ export default function CallsPage() {
                         {/* Avatar */}
                         <Avatar className="h-10 w-10 flex-shrink-0">
                             <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7]">
-                                {/* Use initials from full_name */}
                                 {call.full_name ? call.full_name.split(' ').map(n => n[0]).join('') : '??'}
                             </AvatarFallback>
                         </Avatar>
+                        {/* Call Info */}
                         <div className="flex-1 overflow-hidden">
-                        <div className="flex items-center justify-between mb-1">
-                            <p className="font-medium text-[#EDE7C7] truncate">{call.full_name || "Unknown Caller"}</p>
-                            {getOutcomeBadge(call)}
-                        </div>
-                        <p className="text-sm text-[#EDE7C7]/60 mb-2">{call.client_number || call.email || "No contact info"}</p>
-                        <div className="flex items-center gap-4 text-xs text-[#EDE7C7]/40">
-                            {/* Assuming all are incoming for now, adjust if type is stored */}
-                            <div className="flex items-center gap-1">
-                                <PhoneIncoming className="h-3 w-3" />
-                                <span>Incoming</span>
+                            <div className="flex items-center justify-between mb-1 flex-wrap gap-2"> {/* Added flex-wrap */}
+                                <p className="font-medium text-[#EDE7C7] truncate">{call.full_name || "Unknown Caller"}</p>
+                                {getOutcomeBadge(call)}
                             </div>
-                            <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatDuration(call.call_duration_seconds)}</span>
+                            <p className="text-sm text-[#EDE7C7]/60 mb-2 truncate">{call.client_number || call.email || "No contact info"}</p>
+                            <div className="flex items-center gap-4 text-xs text-[#EDE7C7]/40 flex-wrap"> {/* Added flex-wrap */}
+                                <div className="flex items-center gap-1">
+                                    <PhoneIncoming className="h-3 w-3" />
+                                    <span>Incoming</span> {/* Assuming incoming */}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    <span>{formatDuration(call.call_duration_seconds)}</span>
+                                </div>
+                                <span>{format(parseISO(call.created_at), 'MMM d, h:mm a')}</span>
                             </div>
-                            {/* Format created_at */}
-                             <span>{format(parseISO(call.created_at), 'MMM d, h:mm a')}</span>
-                        </div>
                         </div>
                     </div>
                     </button>
@@ -221,7 +225,7 @@ export default function CallsPage() {
                   <div>
                     <p className="font-medium text-[#EDE7C7] text-base">{selectedCall.full_name || "Unknown Caller"}</p>
                     <p className="text-[#EDE7C7]/60">{selectedCall.client_number || "No phone"}</p>
-                     <p className="text-[#EDE7C7]/60">{selectedCall.email || "No email"}</p>
+                    <p className="text-[#EDE7C7]/60">{selectedCall.email || "No email"}</p>
                   </div>
                 </div>
 
@@ -233,7 +237,7 @@ export default function CallsPage() {
                     {selectedCall.monthly_budget !== null && <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Budget</span> <span className="text-[#EDE7C7]">R {selectedCall.monthly_budget.toLocaleString('en-ZA')}</span> </div>}
                 </div>
 
-                 {/* Call Goal/Purpose */}
+                 {/* Call Goal */}
                  {selectedCall.goal && (
                     <div className="border-t border-[#2A2A2A] pt-4">
                         <Label className="text-[#EDE7C7]/80 block mb-2 font-medium">Call Goal</Label>
@@ -254,8 +258,6 @@ export default function CallsPage() {
                         </div>
                     )}
                  </div>
-
-                {/* Removed Recording/Transcript sections */}
 
               </div>
             ) : (
