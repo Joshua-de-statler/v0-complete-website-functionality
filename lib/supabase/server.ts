@@ -1,11 +1,9 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 // Remove the direct import of cookies from next/headers
-// import { cookies } from "next/headers"
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies' // Import the type
 
-export function createClient(cookieStore: ReadonlyRequestCookies) { // Accept cookieStore as an argument
-  // const cookieStore = cookies() // Remove this line
-
+// Accept cookieStore as an argument
+export function createClient(cookieStore: ReadonlyRequestCookies) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -19,8 +17,7 @@ export function createClient(cookieStore: ReadonlyRequestCookies) { // Accept co
             cookieStore.set({ name, value, ...options })
           } catch (error) {
             // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // Can be ignored if middleware refreshes sessions.
           }
         },
         remove(name: string, options: CookieOptions) {
@@ -28,8 +25,7 @@ export function createClient(cookieStore: ReadonlyRequestCookies) { // Accept co
             cookieStore.set({ name, value: "", ...options })
           } catch (error) {
             // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // Can be ignored if middleware refreshes sessions.
           }
         },
       },
