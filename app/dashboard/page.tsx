@@ -1,13 +1,13 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageSquare, CalendarCheck, TrendingUp, Clock } from "lucide-react"
+import { MessageSquare, CalendarCheck, TrendingUp, Clock, AlertTriangle } from "lucide-react" // Updated icons
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
-import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
+// Import RecentActivity if you want to update it later
+// import { RecentActivity } from "@/components/dashboard/recent-activity"
 
 export default function DashboardPage() {
   const companySupabase = useCompanySupabase()
@@ -23,28 +23,37 @@ export default function DashboardPage() {
     async function fetchStats() {
       if (!companySupabase) {
         setIsLoading(false)
+        console.log("Overview: Company Supabase client not available.");
         return
       }
-
+      console.log("Overview: Fetching stats...");
       setIsLoading(true)
-
+      
       try {
-        // Fetch conversation count in parallel
-        const conversationPromise = companySupabase
+        // Fetch conversation count
+        const convPromise = companySupabase
           .from("conversation_history")
-          .select("*", { count: "exact", head: true })
+          .select('*', { count: 'exact', head: true })
 
-        // Fetch meetings stats in parallel
-        const meetingsPromise = companySupabase.from("meetings").select("status")
+        // Fetch meetings stats
+        const meetingsPromise = companySupabase
+          .from("meetings")
+          .select("status")
 
-        const [conversationResult, meetingsResult] = await Promise.all([conversationPromise, meetingsPromise])
+        // Run queries in parallel
+        const [conversationResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
 
-        if (conversationResult.error) throw conversationResult.error
-        if (meetingsResult.error) throw meetingsResult.error
-
-        const meetings = meetingsResult.data || []
-        const confirmed = meetings.filter((m) => m.status === "confirmed").length
-        const pending = meetings.filter((m) => m.status === "pending_confirmation").length
+        if (conversationResult.error) throw conversationResult.error;
+        if (meetingsResult.error) throw meetingsResult.error;
+        
+        const meetings = meetingsResult.data || [];
+        const confirmed = meetings.filter(m => m.status === 'confirmed').length
+        const pending = meetings.filter(m => m.status === 'pending_confirmation').length
+        
+        console.log("Overview: Stats fetched successfully.", {
+            convCount: conversationResult.count,
+            meetingsData: meetingsResult.data
+        });
 
         setStats({
           totalConversations: conversationResult.count || 0,
@@ -52,18 +61,21 @@ export default function DashboardPage() {
           confirmedMeetings: confirmed,
           pendingMeetings: pending,
         })
+
       } catch (error) {
         console.error("Error fetching dashboard stats:", error)
+        // Add a toast notification here if desired
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchStats()
-  }, [companySupabase])
+  }, [companySupabase]) // Dependency array includes companySupabase
 
-  if (!companySupabase) {
-    return (
+  // Display message if Supabase credentials are not set
+  if (!companySupabase && !isLoading) {
+     return (
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardContent className="pt-6">
           <div className="text-center py-12">
@@ -73,7 +85,7 @@ export default function DashboardPage() {
               Please go to the settings page and add your Supabase URL and Anon Key to view your dashboard.
             </p>
             <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-              <Link href="/dashboard/settings">Go to Settings</Link>
+                <Link href="/dashboard/settings">Go to Settings</Link>
             </Button>
           </div>
         </CardContent>
@@ -81,6 +93,7 @@ export default function DashboardPage() {
     )
   }
 
+  // Define stat cards based on fetched data
   const statCards = [
     { title: "Total Conversations", value: stats.totalConversations, icon: MessageSquare },
     { title: "Total Meetings Booked", value: stats.totalMeetings, icon: CalendarCheck },
@@ -89,7 +102,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-8 max-w-7xl">
+    <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-[#EDE7C7]">Overview</h2>
         <p className="text-[#EDE7C7]/60 mt-2">Here's your bot's performance summary.</p>
@@ -104,15 +117,19 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
+                // Simple pulse animation for loading state
                 <div className="h-8 w-1/2 bg-[#2A2A2A] rounded-md animate-pulse" />
               ) : (
                 <div className="text-2xl font-bold text-[#EDE7C7]">{stat.value}</div>
               )}
+               {/* Optionally add description/trend later if needed */}
             </CardContent>
           </Card>
         ))}
       </div>
-      <RecentActivity />
+
+      {/* Placeholder for RecentActivity component - can be updated next */}
+      {/* <RecentActivity /> */}
     </div>
   )
 }
