@@ -1,14 +1,15 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageSquare, CalendarCheck, TrendingUp, Clock, AlertTriangle, BarChartHorizontal } from "lucide-react"
+import { MessageSquare, CalendarCheck, TrendingUp, Clock, AlertTriangle, LineChart as LineChartIcon } from "lucide-react" // Changed BarChart icon
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
+// Import Recharts components for Line Chart
+import { LineChart, Line, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
 
-// Interface for the processed daily chart data
+// Interface for the processed daily chart data (remains the same)
 interface DailyMeetingData {
   day: string; // e.g., "19 Oct"
   fullDate: string; // e.g., "2025-10-19" for sorting
@@ -24,35 +25,21 @@ export default function DashboardPage() {
     confirmedMeetings: 0,
     pendingMeetings: 0,
   })
-  // State specifically for the daily chart data
   const [chartData, setChartData] = useState<DailyMeetingData[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function fetchStatsAndChartData() {
       if (!companySupabase) {
-        setIsLoading(false)
-        console.log("Overview: Company Supabase client not available.");
-        return
+        setIsLoading(false);
+        return;
       }
-      console.log("Overview: Fetching data...");
-      setIsLoading(true)
+      setIsLoading(true);
       
       try {
-        // Fetch conversation count
-        const convPromise = companySupabase
-          .from("conversation_history")
-          .select('*', { count: 'exact', head: true })
+        const convPromise = companySupabase.from("conversation_history").select('*', { count: 'exact', head: true });
+        const meetingsPromise = companySupabase.from("meetings").select("created_at, status").order("created_at", { ascending: true });
 
-        // Fetch meetings data (created_at and status needed)
-        // Optionally, filter by date range here on the server if needed for performance
-        // Example: .gte('created_at', thirtyDaysAgo.toISOString())
-        const meetingsPromise = companySupabase
-          .from("meetings")
-          .select("created_at, status")
-          .order("created_at", { ascending: true }); // Order for easier processing
-
-        // Run queries in parallel
         const [conversationResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
 
         if (conversationResult.error) throw conversationResult.error;
@@ -60,40 +47,34 @@ export default function DashboardPage() {
         
         // --- Process for Stats (remains the same) ---
         const meetings = meetingsResult.data || [];
-        const confirmed = meetings.filter(m => m.status === 'confirmed').length
-        const pending = meetings.filter(m => m.status === 'pending_confirmation').length
+        const confirmed = meetings.filter(m => m.status === 'confirmed').length;
+        const pending = meetings.filter(m => m.status === 'pending_confirmation').length;
         
         setStats({
           totalConversations: conversationResult.count || 0,
           totalMeetings: meetings.length,
           confirmedMeetings: confirmed,
           pendingMeetings: pending,
-        })
+        });
         // --- End Stats Processing ---
 
-        // --- Process data for the Daily Chart ---
+        // --- Process data for the Daily Chart (remains the same) ---
         const dailyData: { [key: string]: { fullDate: string, total: number; confirmed: number } } = {};
-        // Formatters for display (e.g., "19 Oct") and for keys/sorting (e.g., "2025-10-19")
         const dayFormatter = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short' });
         const keyFormatter = (date: Date): string => {
-            // Ensure date is valid before formatting
             if (isNaN(date.getTime())) return "Invalid Date";
             const year = date.getFullYear();
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
             const day = date.getDate().toString().padStart(2, '0');
             return `${year}-${month}-${day}`;
         };
-
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         meetings.forEach(meeting => {
           const date = new Date(meeting.created_at);
-          if (isNaN(date.getTime()) || date < thirtyDaysAgo) return; // Skip invalid dates or dates older than 30 days
-
-          const dayKey = keyFormatter(date); // Use YYYY-MM-DD for grouping and sorting
-          const displayDay = dayFormatter.format(date); // Use "DD Mmm" for display
-
+          if (isNaN(date.getTime()) || date < thirtyDaysAgo) return;
+          const dayKey = keyFormatter(date);
           if (!dailyData[dayKey]) {
             dailyData[dayKey] = { fullDate: dayKey, total: 0, confirmed: 0 };
           }
@@ -103,37 +84,31 @@ export default function DashboardPage() {
           }
         });
 
-        // Convert processed data into an array suitable for the chart, sorted chronologically
         const chartDataArray: DailyMeetingData[] = Object.entries(dailyData)
           .map(([_, data]) => ({
-            day: dayFormatter.format(new Date(data.fullDate + 'T00:00:00')), // Format for display
+            day: dayFormatter.format(new Date(data.fullDate + 'T00:00:00')),
             fullDate: data.fullDate,
             total: data.total,
             confirmed: data.confirmed,
           }))
-          .sort((a, b) => a.fullDate.localeCompare(b.fullDate)); // Sort by YYYY-MM-DD
+          .sort((a, b) => a.fullDate.localeCompare(b.fullDate));
         
-        console.log("Overview: Processed daily chart data:", chartDataArray);
         setChartData(chartDataArray);
         // --- End Chart Data Processing ---
 
-        console.log("Overview: Data fetched successfully.");
-
       } catch (error) {
-        console.error("Error fetching dashboard data:", error)
-        // Add a toast notification here if desired
+        console.error("Error fetching dashboard data:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
 
-    fetchStatsAndChartData()
-  }, [companySupabase]) // Dependency array
+    fetchStatsAndChartData();
+  }, [companySupabase]);
 
-  // Render message if Supabase credentials are not set
-  if (!companySupabase && !isLoading) {
+  // --- Render logic (including Database Not Connected message) remains the same until the chart ---
+   if (!companySupabase && !isLoading) {
      return (
-       // ... (Database not connected message remains the same)
         <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
             <CardContent className="pt-6">
             <div className="text-center py-12">
@@ -151,13 +126,13 @@ export default function DashboardPage() {
      )
   }
 
-  // Define stat cards based on fetched data
   const statCards = [
     { title: "Total Conversations", value: stats.totalConversations, icon: MessageSquare },
     { title: "Total Meetings Booked", value: stats.totalMeetings, icon: CalendarCheck },
     { title: "Confirmed Meetings", value: stats.confirmedMeetings, icon: TrendingUp },
     { title: "Pending Confirmation", value: stats.pendingMeetings, icon: Clock },
   ]
+
 
   return (
     <div className="space-y-8">
@@ -166,9 +141,10 @@ export default function DashboardPage() {
         <p className="text-[#EDE7C7]/60 mt-2">Here's your bot's performance summary.</p>
       </div>
 
-      {/* Top Stat Cards */}
+      {/* Top Stat Cards (remain the same) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
+        {/* ... stat cards ... */}
+         {statCards.map((stat) => (
           <Card key={stat.title} className="bg-[#1A1A1A] border-[#2A2A2A]">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">{stat.title}</CardTitle>
@@ -185,11 +161,11 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Meetings Over Time Chart (Daily for Last 30 Days) */}
+      {/* --- UPDATED CHART SECTION --- */}
        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
             <CardHeader>
               <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
-                <BarChartHorizontal className="h-5 w-5" />
+                <LineChartIcon className="h-5 w-5" /> {/* Use LineChart icon */}
                 Daily Meetings Overview (Last 30 Days)
               </CardTitle>
             </CardHeader>
@@ -201,34 +177,49 @@ export default function DashboardPage() {
                     {chartData.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available for the last 30 days.</div>
                     ) : (
-                        <BarChart data={chartData}>
-                        <XAxis
-                            dataKey="day" // Use the formatted day (e.g., "19 Oct") for the axis label
-                            stroke="#EDE7C7"
-                            fontSize={10} // Smaller font size for daily labels
-                            tickLine={false}
-                            axisLine={false}
-                            interval={chartData.length > 15 ? 4 : 1} // Show fewer labels if too crowded
-                        />
-                        <YAxis stroke="#EDE7C7" fontSize={12} tickLine={false} axisLine={false} />
-                        <Tooltip
-                            cursor={{ fill: '#2A2A2A' }}
-                            contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem' }}
-                            labelFormatter={(label, payload) => {
-                                // Find the full date from the payload if available
-                                const dataPoint = payload?.[0]?.payload as DailyMeetingData | undefined;
-                                return dataPoint ? new Date(dataPoint.fullDate + 'T00:00:00').toLocaleDateString() : label;
-                            }}
-                        />
-                        <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px' }}/>
-                        <Bar dataKey="total" name="Total Booked" fill="#8884d8" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="confirmed" name="Confirmed" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-                        </BarChart>
+                        <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                            <CartesianGrid stroke="#2A2A2A" strokeDasharray="3 3" /> {/* Add grid lines */}
+                            <XAxis
+                                dataKey="day"
+                                stroke="#EDE7C7"
+                                fontSize={10}
+                                tickLine={false}
+                                axisLine={false}
+                                interval={chartData.length > 15 ? 4 : 1}
+                            />
+                            <YAxis stroke="#EDE7C7" fontSize={12} tickLine={false} axisLine={false} />
+                            <Tooltip
+                                cursor={{ stroke: '#8B0000', strokeWidth: 1 }} // Customize cursor
+                                contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem' }}
+                                labelFormatter={(label, payload) => {
+                                    const dataPoint = payload?.[0]?.payload as DailyMeetingData | undefined;
+                                    return dataPoint ? new Date(dataPoint.fullDate + 'T00:00:00').toLocaleDateString() : label;
+                                }}
+                            />
+                            <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px' }}/>
+                            <Line
+                                type="monotone" // Makes the line smooth
+                                dataKey="total"
+                                name="Total Booked"
+                                stroke="#8884d8" // Line color
+                                dot={{ fill: '#8884d8', r: 3 }} // Dot style
+                                activeDot={{ r: 6 }} // Style on hover
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="confirmed"
+                                name="Confirmed"
+                                stroke="#82ca9d"
+                                dot={{ fill: '#82ca9d', r: 3 }}
+                                activeDot={{ r: 6 }}
+                            />
+                        </LineChart>
                     )}
                 </ResponsiveContainer>
               )}
             </CardContent>
           </Card>
+      {/* --- END UPDATED CHART SECTION --- */}
     </div>
   )
 }
