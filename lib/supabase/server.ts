@@ -1,8 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
-// Remove the direct import of cookies from next/headers
-import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies' // Import the type
+// Remove the direct import of cookies
+import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies' // Import the necessary type
 
-// Accept cookieStore as an argument
+// Modify createClient to accept cookieStore as an argument
 export function createClient(cookieStore: ReadonlyRequestCookies) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

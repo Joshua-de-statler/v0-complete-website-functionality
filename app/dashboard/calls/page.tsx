@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Search, Phone, Clock, User, Mail, AlertTriangle, PhoneIncoming, ThumbsUp, ThumbsDown, DollarSign, Target as GoalIcon } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label" // <<<--- ADDED LABEL IMPORT
-import { Textarea } from "@/components/ui/textarea" // <<<--- ADDED TEXTAREA IMPORT (for notes)
+import { Label } from "@/components/ui/label" // <<<--- ADDED IMPORT
+import { Textarea } from "@/components/ui/textarea" // <<<--- ADDED IMPORT (for notes)
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast"
 import { format, parseISO } from 'date-fns'
 import Link from "next/link"
+import { ScrollArea } from "@/components/ui/scroll-area" // Added ScrollArea
 
 // Interface matching the 'call_history' table schema
 interface CallHistoryEntry {
@@ -72,7 +73,7 @@ export default function CallsPage() {
     fetchCallHistory();
   }, [companySupabase, toast]);
 
-  // Filter logic (remains the same)
+  // Filter logic
   const filteredCalls = callHistory.filter((call) => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
@@ -90,7 +91,7 @@ export default function CallsPage() {
     return matchesSearch && matchesFilter;
   });
 
-   // Helper to format duration (remains the same)
+   // Helper to format duration
   const formatDuration = (seconds: number | null): string => {
       if (seconds === null || seconds === undefined) return "--";
       const minutes = Math.floor(seconds / 60);
@@ -98,7 +99,7 @@ export default function CallsPage() {
       return `${minutes}m ${remainingSeconds}s`;
   }
 
-   // Badge for call outcome (remains the same)
+   // Badge for call outcome in the list
    const getOutcomeBadge = (call: CallHistoryEntry) => {
        if (call.resulted_in_meeting === true) {
            return <Badge variant="outline" className="border-green-500/50 text-green-500 text-xs">Meeting Booked</Badge>;
@@ -114,7 +115,6 @@ export default function CallsPage() {
 
   // --- RENDER LOGIC ---
   if (!companySupabase && !isLoading) {
-    // ... Database not connected message ...
     return ( <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardContent className="pt-6"><div className="text-center py-12"><AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" /><h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3><p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">Please go to the settings page to connect your bot's database.</p><Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90"><Link href="/dashboard/settings">Go to Settings</Link></Button></div></CardContent></Card> );
   }
 
@@ -127,21 +127,32 @@ export default function CallsPage() {
 
        {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* ... Search and Filter controls ... */}
-         <div className="relative flex-1"> <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" /> <Input placeholder="Search by name, email, phone, company..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]" /> </div> <Select value={filterOption} onValueChange={setFilterOption}> <SelectTrigger className="w-full sm:w-[220px] bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]"> <SelectValue placeholder="Filter call results" /> </SelectTrigger> <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]"> <SelectItem value="all">All Calls</SelectItem> <SelectItem value="meeting_yes">Resulted in Meeting</SelectItem> <SelectItem value="meeting_no">Did Not Result in Meeting</SelectItem> <SelectItem value="disqualified">Disqualified</SelectItem> </SelectContent> </Select>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" />
+          <Input placeholder="Search by name, email, phone, company..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]" />
+        </div>
+         <Select value={filterOption} onValueChange={setFilterOption}>
+            <SelectTrigger className="w-full sm:w-[220px] bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7]"> <SelectValue placeholder="Filter call results" /> </SelectTrigger>
+            <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]">
+                <SelectItem value="all">All Calls</SelectItem>
+                <SelectItem value="meeting_yes">Resulted in Meeting</SelectItem>
+                <SelectItem value="meeting_no">Did Not Result in Meeting</SelectItem>
+                <SelectItem value="disqualified">Disqualified</SelectItem>
+            </SelectContent>
+        </Select>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-14rem)]">
         {/* Call Logs List */}
-        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2">
-          {/* ... Card Header ... */}
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2 flex flex-col">
           <CardHeader> <CardTitle className="text-[#EDE7C7]">Call History ({filteredCalls.length})</CardTitle> </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 flex-1">
+            <ScrollArea className="h-full">
             {isLoading ? ( <div className="text-center py-12 text-[#EDE7C7]/60">Loading calls...</div> )
             : callHistory.length === 0 ? ( <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No call history found.</p> )
             : filteredCalls.length === 0 ? ( <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No calls match your current filters.</p> )
             : (
-                <div className="space-y-3">
+                <div className="space-y-3 p-6 pt-0">
                 {filteredCalls.map((call) => (
                     <button key={call.id} onClick={() => setSelectedCall(call)} className={`w-full p-4 rounded-lg border text-left transition-colors ${ selectedCall?.id === call.id ? "border-[#EDE7C7]/30 bg-[#2A2A2A]/50" : "border-[#2A2A2A] hover:border-[#EDE7C7]/20 hover:bg-[#2A2A2A]/30" }`} >
                         <div className="flex items-start gap-4">
@@ -156,36 +167,32 @@ export default function CallsPage() {
                 ))}
                 </div>
             )}
+            </ScrollArea>
           </CardContent>
         </Card>
 
         {/* Call Details Panel */}
-        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A] flex flex-col">
           <CardHeader> <CardTitle className="text-[#EDE7C7]">Call Details</CardTitle> </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto">
             {selectedCall ? (
               <div className="space-y-6 text-sm">
-                {/* Caller Info */}
                 <div className="flex items-center gap-3">
                   <Avatar className="h-14 w-14"> <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7] text-lg"> {selectedCall.full_name ? selectedCall.full_name.split(' ').map(n => n[0]).join('') : '??'} </AvatarFallback> </Avatar>
                   <div> <p className="font-medium text-[#EDE7C7] text-base">{selectedCall.full_name || "Unknown Caller"}</p> <p className="text-[#EDE7C7]/60">{selectedCall.client_number || "No phone"}</p> <p className="text-[#EDE7C7]/60">{selectedCall.email || "No email"}</p> </div>
                 </div>
-                {/* Call Metadata */}
-                 <div className="space-y-3 border-t border-[#2A2A2A] pt-4">
-                  <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Call Time</span> <span className="text-[#EDE7C7]">{format(parseISO(selectedCall.created_at), 'MMM d, yyyy h:mm a')}</span> </div>
-                   {selectedCall.call_duration_seconds !== null && <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Duration</span> <span className="text-[#EDE7C7]">{formatDuration(selectedCall.call_duration_seconds)}</span> </div>}
-                   {selectedCall.company_name && <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Company</span> <span className="text-[#EDE7C7]">{selectedCall.company_name}</span> </div>}
-                    {selectedCall.monthly_budget !== null && <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Budget</span> <span className="text-[#EDE7C7]">R {selectedCall.monthly_budget.toLocaleString('en-ZA')}</span> </div>}
+                <div className="space-y-3 border-t border-[#2A2A2A] pt-4">
+                  <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Call Time</span> <span className="text-[#EDE7C7] text-right">{format(parseISO(selectedCall.created_at), 'MMM d, yyyy h:mm a')}</span> </div>
+                  {selectedCall.call_duration_seconds !== null && <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Duration</span> <span className="text-[#EDE7C7]">{formatDuration(selectedCall.call_duration_seconds)}</span> </div>}
+                  {selectedCall.company_name && <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Company</span> <span className="text-[#EDE7C7] text-right">{selectedCall.company_name}</span> </div>}
+                  {selectedCall.monthly_budget !== null && <div className="flex justify-between"> <span className="text-[#EDE7C7]/60">Budget</span> <span className="text-[#EDE7C7]">R {selectedCall.monthly_budget.toLocaleString('en-ZA')}</span> </div>}
                 </div>
-                 {/* Call Goal */}
-                 {selectedCall.goal && ( <div className="border-t border-[#2A2A2A] pt-4"> <Label className="text-[#EDE7C7]/80 block mb-2 font-medium">Call Goal</Label> <p className="text-[#EDE7C7] bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">{selectedCall.goal}</p> </div> )}
-                 {/* Call Outcome */}
-                 <div className="border-t border-[#2A2A2A] pt-4 space-y-2">
+                {selectedCall.goal && ( <div className="border-t border-[#2A2A2A] pt-4"> <Label className="text-[#EDE7C7]/80 block mb-2 font-medium">Call Goal</Label> <p className="text-[#EDE7C7] bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">{selectedCall.goal}</p> </div> )}
+                <div className="border-t border-[#2A2A2A] pt-4 space-y-2">
                      <Label className="text-[#EDE7C7]/80 block font-medium">Call Outcome</Label>
                      <p className={`font-medium ${selectedCall.resulted_in_meeting ? 'text-green-500' : selectedCall.disqualification_reason ? 'text-red-500' : 'text-yellow-500'}`}> {selectedCall.resulted_in_meeting ? 'Meeting Booked' : selectedCall.disqualification_reason ? 'Disqualified' : 'No Meeting Booked'} </p>
                     {selectedCall.disqualification_reason && ( <div> <Label className="text-[#EDE7C7]/60 text-xs">Reason:</Label> <p className="text-[#EDE7C7] mt-1 text-sm bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">{selectedCall.disqualification_reason}</p> </div> )}
                  </div>
-                 {/* Add Notes Section */}
                  <div className="border-t border-[#2A2A2A] pt-4">
                      <Label htmlFor="callNotes" className="text-[#EDE7C7]/80 block mb-2 font-medium">Notes (Not Saved)</Label>
                      <Textarea id="callNotes" value={currentNotes} onChange={(e) => setCurrentNotes(e.target.value)} placeholder="Add temporary notes about this call..." className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" rows={3}/>
