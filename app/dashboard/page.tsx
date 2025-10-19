@@ -147,7 +147,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {statCards.map((stat) => (
           <Card key={stat.title} className="bg-[#1A1A1A] border-[#2A2A2A]">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 min-h-[72px]">
               <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-[#EDE7C7]/60" />
             </CardHeader>
