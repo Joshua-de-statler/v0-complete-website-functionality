@@ -7,7 +7,10 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Area, defs, linearGradient } from "recharts"
-import { differenceInDays, format, eachDayOfInterval, startOfDay } from 'date-fns' // Import date-fns functions
+import { differenceInDays, format, eachDayOfInterval, startOfDay } from 'date-fns'
+// --- Ensure this import line exists and is uncommented ---
+import { RecentActivity } from "@/components/dashboard/recent-activity";
+// --- End ensure import line ---
 
 // Interface for daily chart data
 interface DailyMeetingData {
@@ -31,7 +34,7 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const companySupabase = useCompanySupabase()
-  const [stats, setStats] = useState<DashboardStats>({ /* ... initial stats ... */
+  const [stats, setStats] = useState<DashboardStats>({
         totalConversations: 0,
         totalMeetings: 0,
         confirmedMeetings: 0,
@@ -43,126 +46,91 @@ export default function DashboardPage() {
     })
   const [chartData, setChartData] = useState<DailyMeetingData[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  // State to store the number of days shown in the chart
   const [chartDaysCount, setChartDaysCount] = useState<number>(0);
 
   useEffect(() => {
     async function fetchStatsAndChartData() {
-      if (!companySupabase) {
-        setIsLoading(false); return;
-      }
-      setIsLoading(true);
-      
-      try {
-        // Fetch conversation count (remains the same)
-        const convPromise = companySupabase
-          .from("conversation_history")
-          .select('*', { count: 'exact', head: true });
-
-        // Fetch ALL meetings, ordered by creation date
-        const meetingsPromise = companySupabase
-          .from("meetings")
-          .select("created_at, status")
-          .order("created_at", { ascending: true }); // Ascending to easily find the first date
-
-        const [conversationResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
-
-        if (conversationResult.error) throw conversationResult.error;
-        if (meetingsResult.error) throw meetingsResult.error;
-        
-        const meetings = meetingsResult.data || [];
-        const confirmed = meetings.filter(m => m.status === 'confirmed').length;
-        const pending = meetings.filter(m => m.status === 'pending_confirmation').length;
-        
-        // --- Process for Stats (use all meetings for totals) ---
-        setStats(prev => ({
-            ...prev,
-            totalConversations: conversationResult.count || 0,
-            totalMeetings: meetings.length,
-            confirmedMeetings: confirmed,
-            pendingMeetings: pending,
-            // Placeholder trends (replace later)
-            conversationTrend: placeholderTrend(conversationResult.count || 0),
-            meetingsTrend: placeholderTrend(meetings.length),
-            confirmedTrend: placeholderTrend(confirmed),
-            pendingTrend: placeholderTrend(pending) * -1,
-        }));
-        // --- End Stats Processing ---
-
-        // --- Process data for the Full-Range Daily Chart ---
-        if (meetings.length > 0) {
-            const dailyData: { [key: string]: { total: number; confirmed: number } } = {};
-            const firstMeetingDate = startOfDay(new Date(meetings[0].created_at)); // Get the start of the first day
-            const today = startOfDay(new Date()); // Get the start of today
-
-             // Calculate the number of days for the title
-            const daysCount = differenceInDays(today, firstMeetingDate) + 1; // +1 to include both start and end day
-            setChartDaysCount(daysCount);
-
-            // Group meetings by day (YYYY-MM-DD format)
-            meetings.forEach(meeting => {
-                const date = startOfDay(new Date(meeting.created_at));
-                if (isNaN(date.getTime())) return;
-                const dayKey = format(date, 'yyyy-MM-dd'); // Use date-fns format
-
-                if (!dailyData[dayKey]) {
-                    dailyData[dayKey] = { total: 0, confirmed: 0 };
-                }
-                dailyData[dayKey].total += 1;
-                if (meeting.status === 'confirmed') {
-                    dailyData[dayKey].confirmed += 1;
-                }
-            });
-
-            // Generate a complete list of days from the first meeting until today
-            const allDaysInterval = eachDayOfInterval({ start: firstMeetingDate, end: today });
-
-            const finalChartData: DailyMeetingData[] = allDaysInterval.map(date => {
-                const dayKey = format(date, 'yyyy-MM-dd');
-                const displayDay = format(date, 'd MMM'); // e.g., "19 Oct"
-                const data = dailyData[dayKey] || { total: 0, confirmed: 0 }; // Use 0 if no meetings on this day
-                return {
-                    day: displayDay,
-                    fullDate: dayKey,
-                    total: data.total,
-                    confirmed: data.confirmed,
-                };
-            });
-
-            console.log(`Overview: Processed chart data for ${daysCount} days.`);
-            setChartData(finalChartData);
-        } else {
-             // Handle case with no meetings at all
-            setChartData([]);
-            setChartDaysCount(0);
-            console.log("Overview: No meeting data found.");
+        if (!companySupabase) {
+            setIsLoading(false); return;
         }
-        // --- End Chart Data Processing ---
+        setIsLoading(true);
 
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setIsLoading(false);
-      }
+        try {
+            const convPromise = companySupabase.from("conversation_history").select('*', { count: 'exact', head: true });
+            const meetingsPromise = companySupabase.from("meetings").select("created_at, status").order("created_at", { ascending: true });
+
+            const [conversationResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
+
+            if (conversationResult.error) throw conversationResult.error;
+            if (meetingsResult.error) throw meetingsResult.error;
+
+            const meetings = meetingsResult.data || [];
+            const confirmed = meetings.filter(m => m.status === 'confirmed').length;
+            const pending = meetings.filter(m => m.status === 'pending_confirmation').length;
+
+            const placeholderTrend = (current: number) => current > 5 ? Math.round((Math.random() * 10) - 3) : 0; // Placeholder
+
+            setStats(prev => ({
+                ...prev,
+                totalConversations: conversationResult.count || 0,
+                totalMeetings: meetings.length,
+                confirmedMeetings: confirmed,
+                pendingMeetings: pending,
+                conversationTrend: placeholderTrend(conversationResult.count || 0),
+                meetingsTrend: placeholderTrend(meetings.length),
+                confirmedTrend: placeholderTrend(confirmed),
+                pendingTrend: placeholderTrend(pending) * -1,
+            }));
+
+            if (meetings.length > 0) {
+                const dailyData: { [key: string]: { total: number; confirmed: number } } = {};
+                const firstMeetingDate = startOfDay(new Date(meetings[0].created_at));
+                const today = startOfDay(new Date());
+                const daysCount = differenceInDays(today, firstMeetingDate) + 1;
+                setChartDaysCount(daysCount);
+
+                meetings.forEach(meeting => {
+                    const date = startOfDay(new Date(meeting.created_at));
+                    if (isNaN(date.getTime())) return;
+                    const dayKey = format(date, 'yyyy-MM-dd');
+                    if (!dailyData[dayKey]) dailyData[dayKey] = { total: 0, confirmed: 0 };
+                    dailyData[dayKey].total += 1;
+                    if (meeting.status === 'confirmed') dailyData[dayKey].confirmed += 1;
+                });
+
+                const allDaysInterval = eachDayOfInterval({ start: firstMeetingDate, end: today });
+                const finalChartData: DailyMeetingData[] = allDaysInterval.map(date => {
+                    const dayKey = format(date, 'yyyy-MM-dd');
+                    const displayDay = format(date, 'd MMM');
+                    const data = dailyData[dayKey] || { total: 0, confirmed: 0 };
+                    return { day: displayDay, fullDate: dayKey, total: data.total, confirmed: data.confirmed };
+                });
+                setChartData(finalChartData); // No need to sort, eachDayOfInterval is chronological
+            } else {
+                setChartData([]);
+                setChartDaysCount(0);
+            }
+        } catch (error) {
+            console.error("Error fetching dashboard data:", error);
+        } finally {
+            setIsLoading(false);
+        }
     }
-    // Placeholder trend function
-    const placeholderTrend = (current: number) => current > 5 ? Math.round((Math.random() * 10) - 3) : 0;
-
     fetchStatsAndChartData();
-  }, [companySupabase]); // Re-run effect if company client changes
+  }, [companySupabase]);
 
-  // --- Render logic (including Database Not Connected message) remains the same ---
-  const renderTrend = (trendValue: number | null) => { /* ... Trend rendering logic ... */
-    if (trendValue === null || trendValue === 0) return <span className="text-xs text-[#EDE7C7]/50">--</span>;
+  const renderTrend = (trendValue: number | null) => {
+    // ... (trend rendering logic)
+     if (trendValue === null || trendValue === 0) return <span className="text-xs text-[#EDE7C7]/50">--</span>;
     const isPositive = trendValue > 0;
     return ( <span className={`flex items-center text-xs ${isPositive ? 'text-green-500' : 'text-red-500'}`}> {isPositive ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />} {Math.abs(trendValue)}% </span> );
   };
 
-   if (!companySupabase && !isLoading) { return ( /* ... Database not connected message ... */ <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardContent className="pt-6"><div className="text-center py-12"><AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" /><h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3><p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">Please go to the settings page to connect your bot's database.</p><Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90"><Link href="/dashboard/settings">Go to Settings</Link></Button></div></CardContent></Card> ); }
+  if (!companySupabase && !isLoading) { return ( /* ... Database not connected message ... */ <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardContent className="pt-6"><div className="text-center py-12"><AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" /><h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3><p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">Please go to the settings page to connect your bot's database.</p><Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90"><Link href="/dashboard/settings">Go to Settings</Link></Button></div></CardContent></Card> ); }
 
   const statCards = [
     { title: "Total Conversations", value: stats.totalConversations, icon: MessageSquare, trend: stats.conversationTrend },
-    { title: "Total Meetings Booked", value: stats.totalMeetings, icon: CalendarCheck, trend: stats.meetingsTrend }, // Now reflects ALL meetings
+    { title: "Total Meetings Booked", value: stats.totalMeetings, icon: CalendarCheck, trend: stats.meetingsTrend },
     { title: "Total Confirmed", value: stats.confirmedMeetings, icon: TrendingUp, trend: stats.confirmedTrend },
     { title: "Total Pending", value: stats.pendingMeetings, icon: Clock, trend: stats.pendingTrend },
   ];
@@ -176,17 +144,16 @@ export default function DashboardPage() {
 
       {/* Top Stat Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => ( /* ... Stat Card rendering ... */
+        {statCards.map((stat) => (
              <Card key={stat.title} className="bg-[#1A1A1A] border-[#2A2A2A]"> <CardHeader className="flex flex-row items-center justify-between pb-2"> <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">{stat.title}</CardTitle> <stat.icon className="h-4 w-4 text-[#EDE7C7]/60" /> </CardHeader> <CardContent> {isLoading ? (<div className="h-8 w-1/2 bg-[#2A2A2A] rounded-md animate-pulse mb-1" />) : (<div className="text-2xl font-bold text-[#EDE7C7]">{stat.value}</div>)} <div className="h-4 mt-1">{!isLoading && renderTrend(stat.trend)}</div> </CardContent> </Card>
         ))}
       </div>
 
-      {/* Meetings Over Time Line Chart (Full Range) */}
+      {/* Meetings Over Time Line Chart */}
        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
             <CardHeader>
               <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
                 <LineChartIcon className="h-5 w-5" />
-                {/* Dynamically update title based on daysCount */}
                 Daily Meetings Overview {chartDaysCount > 0 ? `(Last ${chartDaysCount} Days)` : ''}
               </CardTitle>
             </CardHeader>
@@ -199,19 +166,16 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available yet.</div>
                     ) : (
                         <LineChart data={chartData} margin={{ top: 5, right: 30, bottom: 5, left: 0 }}>
-                            {/* ... defs, CartesianGrid, YAxis, Tooltip, Legend, Area, Line elements remain the same ... */}
-                             <defs> <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1"> <stop offset="5%" stopColor="#8884d8" stopOpacity={0.6}/> <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/> </linearGradient> <linearGradient id="colorConfirmed" x1="0" y1="0" x2="0" y2="1"> <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.6}/> <stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/> </linearGradient> </defs> <CartesianGrid stroke="#2A2A2A" strokeDasharray="5 5" vertical={false}/>
-                            <XAxis
-                                dataKey="day"
-                                stroke="#EDE7C7"
-                                fontSize={10}
-                                tickLine={false}
-                                axisLine={false}
-                                // Dynamically adjust interval based on number of days
-                                interval={chartDaysCount > 60 ? Math.floor(chartDaysCount / 15) : (chartDaysCount > 30 ? 4 : 1)}
-                                tick={{ fill: '#EDE7C7' }}
-                            />
-                             <YAxis stroke="#EDE7C7" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: '#EDE7C7' }} width={30}/> <Tooltip cursor={{ stroke: '#8B0000', strokeWidth: 1.5, strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: 'rgba(26, 26, 26, 0.9)', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} labelFormatter={(label, payload) => { const dataPoint = payload?.[0]?.payload as DailyMeetingData | undefined; return dataPoint ? new Date(dataPoint.fullDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric'}) : label; }} itemStyle={{ color: '#EDE7C7' }}/> <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px', paddingTop: '10px' }}/> <Area type="monotone" dataKey="total" stroke="none" fillOpacity={0.2} fill="url(#colorTotal)" /> <Area type="monotone" dataKey="confirmed" stroke="none" fillOpacity={0.2} fill="url(#colorConfirmed)" /> <Line type="monotone" dataKey="total" name="Total Booked" stroke="#a7a2ff" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} strokeWidth={2}/> <Line type="monotone" dataKey="confirmed" name="Confirmed" stroke="#82ca9d" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} strokeWidth={2}/>
+                            <defs> <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1"> <stop offset="5%" stopColor="#8884d8" stopOpacity={0.6}/> <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/> </linearGradient> <linearGradient id="colorConfirmed" x1="0" y1="0" x2="0" y2="1"> <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.6}/> <stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/> </linearGradient> </defs>
+                            <CartesianGrid stroke="#2A2A2A" strokeDasharray="5 5" vertical={false}/>
+                            <XAxis dataKey="day" stroke="#EDE7C7" fontSize={10} tickLine={false} axisLine={false} interval={chartDaysCount > 60 ? Math.floor(chartDaysCount / 15) : (chartDaysCount > 30 ? 4 : 1)} tick={{ fill: '#EDE7C7' }}/>
+                            <YAxis stroke="#EDE7C7" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: '#EDE7C7' }} width={30}/>
+                            <Tooltip cursor={{ stroke: '#8B0000', strokeWidth: 1.5, strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: 'rgba(26, 26, 26, 0.9)', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} labelFormatter={(label, payload) => { const dataPoint = payload?.[0]?.payload as DailyMeetingData | undefined; return dataPoint ? new Date(dataPoint.fullDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric'}) : label; }} itemStyle={{ color: '#EDE7C7' }}/>
+                            <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px', paddingTop: '10px' }}/>
+                            <Area type="monotone" dataKey="total" stroke="none" fillOpacity={0.2} fill="url(#colorTotal)" />
+                            <Area type="monotone" dataKey="confirmed" stroke="none" fillOpacity={0.2} fill="url(#colorConfirmed)" />
+                            <Line type="monotone" dataKey="total" name="Total Booked" stroke="#a7a2ff" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} strokeWidth={2}/>
+                            <Line type="monotone" dataKey="confirmed" name="Confirmed" stroke="#82ca9d" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} strokeWidth={2}/>
                         </LineChart>
                     )}
                 </ResponsiveContainer>
@@ -219,7 +183,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-      {/* Recent Activity */}
+      {/* Render Recent Activity */}
       <RecentActivity />
     </div>
   )
