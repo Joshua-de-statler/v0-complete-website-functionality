@@ -1,23 +1,24 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageSquare, CalendarCheck, TrendingUp, Clock, AlertTriangle, LineChart as LineChartIcon, ArrowUp, ArrowDown } from "lucide-react" // Using LineChartIcon
+import { MessageSquare, CalendarCheck, TrendingUp, Clock, AlertTriangle, LineChart as LineChartIcon, ArrowUp, ArrowDown } from "lucide-react"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-// Import Recharts components for Line Chart
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Area, defs, linearGradient } from "recharts"
+// --- UNCOMMENT THIS LINE ---
+import { RecentActivity } from "@/components/dashboard/recent-activity";
 
 // Interface for daily chart data
 interface DailyMeetingData {
-  day: string; // Formatted day (e.g., "19 Oct")
-  fullDate: string; // YYYY-MM-DD for sorting
+  day: string;
+  fullDate: string;
   total: number;
   confirmed: number;
 }
 
-// Interface for stats including trend placeholders
+// Interface for stats
 interface DashboardStats {
     totalConversations: number;
     totalMeetings: number;
@@ -45,13 +46,12 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    // ... (fetchStatsAndChartData function remains the same)
     async function fetchStatsAndChartData() {
       if (!companySupabase) {
         setIsLoading(false);
-        console.log("Overview: Company Supabase client not available.");
         return;
       }
-      console.log("Overview: Fetching data...");
       setIsLoading(true);
       
       try {
@@ -59,14 +59,13 @@ export default function DashboardPage() {
           .from("conversation_history")
           .select('*', { count: 'exact', head: true });
 
-        // Fetch meetings from the last ~31 days to ensure we cover 30 days back
         const thirtyOneDaysAgo = new Date();
         thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31);
         
         const meetingsPromise = companySupabase
           .from("meetings")
           .select("created_at, status")
-          .gte('created_at', thirtyOneDaysAgo.toISOString()) // Filter recent meetings
+          .gte('created_at', thirtyOneDaysAgo.toISOString()) 
           .order("created_at", { ascending: true });
 
         const [conversationResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
@@ -74,29 +73,24 @@ export default function DashboardPage() {
         if (conversationResult.error) throw conversationResult.error;
         if (meetingsResult.error) throw meetingsResult.error;
         
-        // --- Process Stats (using ALL meetings for totals, requires a separate query if needed for all-time stats) ---
-        // For simplicity, current stats reflect the fetched recent meetings.
-        // If you need *all-time* stats, you'd make separate count queries.
         const meetings = meetingsResult.data || [];
         const confirmed = meetings.filter(m => m.status === 'confirmed').length;
         const pending = meetings.filter(m => m.status === 'pending_confirmation').length;
         
-        // Using total count from conv query and *recent* meeting counts for stats
+        const placeholderTrend = (current: number) => current > 5 ? Math.round((Math.random() * 10) - 3) : 0;
+
         setStats(prev => ({
-            ...prev, // Keep potential trend data if implemented later
+            ...prev,
             totalConversations: conversationResult.count || 0,
-            totalMeetings: meetings.length, // Reflects meetings in the last ~30 days
+            totalMeetings: meetings.length, 
             confirmedMeetings: confirmed,
             pendingMeetings: pending,
-             // TODO: Add real trend calculation logic here
             conversationTrend: placeholderTrend(conversationResult.count || 0),
             meetingsTrend: placeholderTrend(meetings.length),
             confirmedTrend: placeholderTrend(confirmed),
             pendingTrend: placeholderTrend(pending) * -1,
         }));
-        // --- End Stats Processing ---
 
-        // --- Process data for the Daily Chart ---
         const dailyData: { [key: string]: { fullDate: string, total: number; confirmed: number } } = {};
         const dayFormatter = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short' });
         const keyFormatter = (date: Date): string => {
@@ -106,12 +100,11 @@ export default function DashboardPage() {
             const day = date.getDate().toString().padStart(2, '0');
             return `${year}-${month}-${day}`;
         };
-        const thirtyDaysAgo = new Date(); // Recalculate precisely for filtering display
+        const thirtyDaysAgo = new Date(); 
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         meetings.forEach(meeting => {
           const date = new Date(meeting.created_at);
-           // Filter again specifically for the chart's 30-day window
           if (isNaN(date.getTime()) || date < thirtyDaysAgo) return; 
           const dayKey = keyFormatter(date); 
           
@@ -124,7 +117,6 @@ export default function DashboardPage() {
           }
         });
 
-        // Generate data points for the last 30 days, including days with 0 meetings
         const finalChartData: DailyMeetingData[] = [];
         for (let i = 0; i < 30; i++) {
             const date = new Date();
@@ -139,13 +131,9 @@ export default function DashboardPage() {
             }
         }
 
-        finalChartData.sort((a, b) => a.fullDate.localeCompare(b.fullDate)); // Sort chronologically
+        finalChartData.sort((a, b) => a.fullDate.localeCompare(b.fullDate)); 
         
-        console.log("Overview: Processed daily chart data:", finalChartData);
         setChartData(finalChartData);
-        // --- End Chart Data Processing ---
-
-        console.log("Overview: Data fetched successfully.");
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -153,13 +141,10 @@ export default function DashboardPage() {
         setIsLoading(false);
       }
     }
-     // Placeholder trend function (replace with actual logic later)
-    const placeholderTrend = (current: number) => current > 5 ? Math.round((Math.random() * 10) - 3) : 0;
-
     fetchStatsAndChartData();
   }, [companySupabase]);
 
-  // Function to render trend indicators (remains the same)
+  // ... (renderTrend function remains the same)
   const renderTrend = (trendValue: number | null) => {
     if (trendValue === null || trendValue === 0) {
       return <span className="text-xs text-[#EDE7C7]/50">--</span>;
@@ -195,7 +180,7 @@ export default function DashboardPage() {
   // Stat card definitions (remain the same)
   const statCards = [
     { title: "Total Conversations", value: stats.totalConversations, icon: MessageSquare, trend: stats.conversationTrend },
-    { title: "Meetings (Last 30 Days)", value: stats.totalMeetings, icon: CalendarCheck, trend: stats.meetingsTrend }, // Clarified scope
+    { title: "Meetings (Last 30 Days)", value: stats.totalMeetings, icon: CalendarCheck, trend: stats.meetingsTrend }, 
     { title: "Confirmed (Last 30 Days)", value: stats.confirmedMeetings, icon: TrendingUp, trend: stats.confirmedTrend },
     { title: "Pending (Last 30 Days)", value: stats.pendingMeetings, icon: Clock, trend: stats.pendingTrend },
   ]
@@ -207,7 +192,7 @@ export default function DashboardPage() {
         <p className="text-[#EDE7C7]/60 mt-2">Here's your bot's performance summary.</p>
       </div>
 
-      {/* Top Stat Cards with Trends */}
+      {/* Top Stat Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Card key={stat.title} className="bg-[#1A1A1A] border-[#2A2A2A]">
@@ -227,7 +212,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
-        <RecentActivity />
       </div>
 
       {/* Meetings Over Time Line Chart */}
@@ -238,7 +222,7 @@ export default function DashboardPage() {
                 Daily Meetings Overview (Last 30 Days)
               </CardTitle>
             </CardHeader>
-            <CardContent className="pl-2"> {/* Reduced left padding for chart */}
+            <CardContent className="pl-2">
               {isLoading ? (
                  <div className="h-[300px] w-full bg-[#2A2A2A] rounded-md animate-pulse flex items-center justify-center text-[#EDE7C7]/60">Loading chart data...</div>
               ) : (
@@ -246,7 +230,7 @@ export default function DashboardPage() {
                     {chartData.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available for the last 30 days.</div>
                     ) : (
-                        <LineChart data={chartData} margin={{ top: 5, right: 30, bottom: 5, left: 0 }}> {/* Adjusted margins */}
+                        <LineChart data={chartData} margin={{ top: 5, right: 30, bottom: 5, left: 0 }}>
                             <defs>
                                 <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#8884d8" stopOpacity={0.6}/>
@@ -257,25 +241,9 @@ export default function DashboardPage() {
                                 <stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/>
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid stroke="#2A2A2A" strokeDasharray="5 5" vertical={false}/> {/* Dashed horizontal lines only */}
-                            <XAxis
-                                dataKey="day"
-                                stroke="#EDE7C7"
-                                fontSize={10}
-                                tickLine={false}
-                                axisLine={false}
-                                interval={'preserveStartEnd'} // Ensure start/end labels show
-                                tick={{ fill: '#EDE7C7' }}
-                            />
-                            <YAxis
-                                stroke="#EDE7C7"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                                allowDecimals={false} // Only show whole numbers
-                                tick={{ fill: '#EDE7C7' }}
-                                width={30} // Give Y-axis labels space
-                            />
+                            <CartesianGrid stroke="#2A2A2A" strokeDasharray="5 5" vertical={false}/>
+                            <XAxis dataKey="day" stroke="#EDE7C7" fontSize={10} tickLine={false} axisLine={false} interval={'preserveStartEnd'} tick={{ fill: '#EDE7C7' }}/>
+                            <YAxis stroke="#EDE7C7" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: '#EDE7C7' }} width={30}/>
                             <Tooltip
                                 cursor={{ stroke: '#8B0000', strokeWidth: 1.5, strokeDasharray: '3 3' }}
                                 contentStyle={{ backgroundColor: 'rgba(26, 26, 26, 0.9)', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
@@ -296,6 +264,9 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
+
+      {/* --- RENDER RECENT ACTIVITY --- */}
+      <RecentActivity />
     </div>
   )
 }
