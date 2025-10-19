@@ -119,26 +119,25 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      <div className="flex justify-between items-center flex-shrink-0">
+    <div className="space-y-4 sm:space-y-6 h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 flex-shrink-0">
         <div>
-          <h1 className="text-4xl font-bold text-[#EDE7C7] tracking-tight">Conversations</h1>
-          <p className="text-base text-[#EDE7C7]/70 mt-3">View and manage your chatbot conversations.</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#EDE7C7] tracking-tight">Conversations</h1>
+          <p className="text-sm sm:text-base text-[#EDE7C7]/70 mt-2">View and manage your chatbot conversations.</p>
         </div>
         <Button
           variant="outline"
           size="icon"
           onClick={fetchConversations}
           disabled={isLoading}
-          className="border-[#2A2A2A] text-[#EDE7C7]/60 hover:text-[#EDE7C7] hover:bg-[#2A2A2A]/50 bg-transparent"
+          className="border-[#2A2A2A] text-[#EDE7C7]/60 hover:text-[#EDE7C7] hover:bg-[#2A2A2A]/50 bg-transparent transition-all duration-200 self-start sm:self-auto"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
-        {/* Conversations List */}
-        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-1 flex flex-col overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 flex-1 min-h-0">
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-1 flex flex-col overflow-hidden transition-all duration-200 hover:border-[#EDE7C7]/20 h-[400px] lg:h-auto">
           <CardHeader className="flex-shrink-0 pb-4">
             <CardTitle className="text-xl font-semibold text-[#EDE7C7]">Chats</CardTitle>
             <div className="relative mt-4">
@@ -185,8 +184,7 @@ export default function ConversationsPage() {
           </CardContent>
         </Card>
 
-        {/* Chat Window */}
-        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2 flex flex-col overflow-hidden">
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2 flex flex-col overflow-hidden transition-all duration-200 hover:border-[#EDE7C7]/20 h-[500px] lg:h-auto">
           {selectedConversation ? (
             <>
               <CardHeader className="border-b border-[#2A2A2A] flex-shrink-0 pb-4">
