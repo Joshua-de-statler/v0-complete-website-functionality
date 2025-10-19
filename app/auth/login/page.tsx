@@ -23,30 +23,47 @@ export default function LoginPage() {
     setIsLoading(true)
     setError(null)
 
+    console.log(`Attempting login for email: ${email}`); // Log email
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       
-      if (error) {
-        // **IMPROVED ERROR HANDLING**
-        // Check for the specific unconfirmed email error
-        if (error.message.includes("Email not confirmed")) {
+      if (signInError) {
+        // **DETAILED ERROR LOGGING**
+        console.error("--- Supabase signInWithPassword Error ---");
+        console.error("Error Code:", signInError.code);
+        console.error("Error Status:", signInError.status);
+        console.error("Error Message:", signInError.message);
+        console.error("Full Error Object:", signInError);
+        console.error("---------------------------------------");
+
+        // Set a more informative error message if possible
+        if (signInError.message.includes("Email not confirmed")) {
           setError("Email not confirmed. Please check your inbox for the verification link.")
+        } else if (signInError.status === 400) {
+           setError("Invalid login credentials provided to Supabase.")
         } else {
-          setError("Invalid login credentials. Please try again.")
+           setError(`Login failed: ${signInError.message}`)
         }
-        setIsLoading(false) // Stop loading on error
+        setIsLoading(false)
         return;
       }
 
+      console.log("Login successful. Received data:", data); // Log success data
       router.push("/dashboard")
       router.refresh()
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An unexpected error occurred.")
+
+    } catch (catchError: unknown) {
+      console.error("--- Catch Block Error ---");
+      console.error("Caught an unexpected error during login:", catchError);
+      console.error("-------------------------");
+      setError(catchError instanceof Error ? catchError.message : "An unexpected error occurred.")
       setIsLoading(false)
     }
+    // Note: Removed finally block for isLoading = false, as it's handled in error/success paths.
   }
 
   return (
