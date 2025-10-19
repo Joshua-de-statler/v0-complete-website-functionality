@@ -1,36 +1,19 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageSquare, CalendarCheck, TrendingUp, Clock, AlertTriangle, Phone } from "lucide-react" // Added Phone icon
+import { MessageSquare, CalendarCheck, TrendingUp, Clock, AlertTriangle, BarChartHorizontal } from "lucide-react" // Added BarChartHorizontal
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts" // Added recharts imports
+// Import Recharts components
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
 
-const generateMockData = () => {
-  const data = []
-  const today = new Date()
-
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-
-    // Simulate growing traffic with some variance
-    const baseTraffic = 50 + (29 - i) * 3
-    const traffic = Math.floor(baseTraffic + Math.random() * 20 - 10)
-
-    // Meetings are roughly 10-15% of traffic
-    const meetings = Math.floor(traffic * (0.1 + Math.random() * 0.05))
-
-    data.push({
-      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      traffic,
-      meetings,
-    })
-  }
-
-  return data
+// Interface for the processed chart data
+interface MonthlyMeetingData {
+  month: string; // e.g., "Oct 2025"
+  total: number;
+  confirmed: number;
 }
 
 export default function DashboardPage() {
@@ -40,88 +23,103 @@ export default function DashboardPage() {
     totalMeetings: 0,
     confirmedMeetings: 0,
     pendingMeetings: 0,
-    totalCalls: 0, // Added totalCalls stat
   })
+  // State specifically for the chart data
+  const [chartData, setChartData] = useState<MonthlyMeetingData[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [chartData] = useState(generateMockData()) // Added chart data
 
   useEffect(() => {
-    async function fetchStats() {
+    async function fetchStatsAndChartData() {
       if (!companySupabase) {
         setIsLoading(false)
-        console.log("Overview: Company Supabase client not available.")
+        console.log("Overview: Company Supabase client not available.");
         return
       }
-      console.log("Overview: Fetching stats...")
+      console.log("Overview: Fetching data...");
       setIsLoading(true)
-
+      
       try {
         // Fetch conversation count
-        const convPromise = companySupabase.from("conversation_history").select("*", { count: "exact", head: true })
+        const convPromise = companySupabase
+          .from("conversation_history")
+          .select('*', { count: 'exact', head: true })
 
-        // Fetch meetings stats
-        const meetingsPromise = companySupabase.from("meetings").select("status")
-
-        const callsPromise = companySupabase.from("calls").select("*", { count: "exact", head: true })
+        // Fetch meetings data (created_at and status needed for stats and chart)
+        const meetingsPromise = companySupabase
+          .from("meetings")
+          .select("created_at, status")
 
         // Run queries in parallel
-        const [conversationResult, meetingsResult, callsResult] = await Promise.all([
-          convPromise,
-          meetingsPromise,
-          callsPromise,
-        ])
+        const [conversationResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise]);
 
-        if (conversationResult.error) throw conversationResult.error
-        if (meetingsResult.error) throw meetingsResult.error
-        if (callsResult.error) throw callsResult.error
-
-        const meetings = meetingsResult.data || []
-        const confirmed = meetings.filter((m) => m.status === "confirmed").length
-        const pending = meetings.filter((m) => m.status === "pending_confirmation").length
-
-        console.log("Overview: Stats fetched successfully.", {
-          convCount: conversationResult.count,
-          meetingsData: meetingsResult.data,
-          callsCount: callsResult.count,
-        })
-
+        if (conversationResult.error) throw conversationResult.error;
+        if (meetingsResult.error) throw meetingsResult.error;
+        
+        // --- Process for Stats ---
+        const meetings = meetingsResult.data || [];
+        const confirmed = meetings.filter(m => m.status === 'confirmed').length
+        const pending = meetings.filter(m => m.status === 'pending_confirmation').length
+        
         setStats({
           totalConversations: conversationResult.count || 0,
           totalMeetings: meetings.length,
           confirmedMeetings: confirmed,
           pendingMeetings: pending,
-          totalCalls: callsResult.count || 0, // Set calls count
         })
+        // --- End Stats Processing ---
+
+        // --- Process data for the Chart ---
+        const monthlyData: { [key: string]: { total: number; confirmed: number } } = {};
+        const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
+
+        meetings.forEach(meeting => {
+          const date = new Date(meeting.created_at);
+          if (isNaN(date.getTime())) return; // Skip invalid dates
+          const monthKey = monthFormatter.format(date);
+
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { total: 0, confirmed: 0 };
+          }
+          monthlyData[monthKey].total += 1;
+          if (meeting.status === 'confirmed') {
+            monthlyData[monthKey].confirmed += 1;
+          }
+        });
+
+        const chartDataArray = Object.entries(monthlyData)
+          .map(([month, data]) => ({ month, ...data }))
+          .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime()); // Sort chronologically
+        
+        console.log("Overview: Processed chart data:", chartDataArray);
+        setChartData(chartDataArray);
+        // --- End Chart Data Processing ---
+
+        console.log("Overview: Data fetched successfully.");
+
       } catch (error) {
-        console.error("Error fetching dashboard stats:", error)
-        setStats({
-          totalConversations: 1247,
-          totalMeetings: 156,
-          confirmedMeetings: 142,
-          pendingMeetings: 14,
-          totalCalls: 89,
-        })
+        console.error("Error fetching dashboard data:", error)
+        // Add a toast notification here if desired
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchStats()
-  }, [companySupabase])
+    fetchStatsAndChartData()
+  }, [companySupabase]) // Dependency array
 
-  // Display message if Supabase credentials are not set
+  // Render message if Supabase credentials are not set
   if (!companySupabase && !isLoading) {
-    return (
+     return (
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardContent className="pt-6">
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3>
             <p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">
-              Please go to the settings page and add your Supabase URL and Anon Key to view your dashboard.
+              Please go to the settings page to connect your bot's database.
             </p>
             <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-              <Link href="/dashboard/settings">Go to Settings</Link>
+                <Link href="/dashboard/settings">Go to Settings</Link>
             </Button>
           </div>
         </CardContent>
@@ -129,10 +127,10 @@ export default function DashboardPage() {
     )
   }
 
+  // Define stat cards based on fetched data
   const statCards = [
     { title: "Total Conversations", value: stats.totalConversations, icon: MessageSquare },
     { title: "Total Meetings Booked", value: stats.totalMeetings, icon: CalendarCheck },
-    { title: "Total Calls", value: stats.totalCalls, icon: Phone },
     { title: "Confirmed Meetings", value: stats.confirmedMeetings, icon: TrendingUp },
     { title: "Pending Confirmation", value: stats.pendingMeetings, icon: Clock },
   ]
@@ -144,67 +142,60 @@ export default function DashboardPage() {
         <p className="text-[#EDE7C7]/60 mt-2">Here's your bot's performance summary.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      {/* Top Stat Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Card key={stat.title} className="bg-[#1A1A1A] border-[#2A2A2A]">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 min-h-[72px]">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-[#EDE7C7]/60" />
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent>
               {isLoading ? (
                 <div className="h-8 w-1/2 bg-[#2A2A2A] rounded-md animate-pulse" />
               ) : (
-                <div className="text-2xl font-bold text-[#EDE7C7] leading-none">{stat.value}</div>
+                <div className="text-2xl font-bold text-[#EDE7C7]">{stat.value}</div>
               )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardHeader>
-          <CardTitle className="text-[#EDE7C7]">Traffic & Meetings Over Time</CardTitle>
-          <p className="text-sm text-[#EDE7C7]/60">Last 30 days performance</p>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
-              <XAxis dataKey="date" stroke="#EDE7C7" tick={{ fill: "#EDE7C7", fontSize: 12 }} tickMargin={10} />
-              <YAxis stroke="#EDE7C7" tick={{ fill: "#EDE7C7", fontSize: 12 }} tickMargin={10} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1A1A1A",
-                  border: "1px solid #2A2A2A",
-                  borderRadius: "8px",
-                  color: "#EDE7C7",
-                }}
-                labelStyle={{ color: "#EDE7C7" }}
-              />
-              <Legend wrapperStyle={{ color: "#EDE7C7" }} iconType="line" />
-              <Line
-                type="monotone"
-                dataKey="traffic"
-                stroke="#EDE7C7"
-                strokeWidth={2}
-                dot={{ fill: "#EDE7C7", r: 3 }}
-                activeDot={{ r: 5 }}
-                name="Conversations"
-              />
-              <Line
-                type="monotone"
-                dataKey="meetings"
-                stroke="#82ca9d"
-                strokeWidth={2}
-                dot={{ fill: "#82ca9d", r: 3 }}
-                activeDot={{ r: 5 }}
-                name="Meetings Booked"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {/* Meetings Over Time Chart */}
+       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+            <CardHeader>
+              <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
+                <BarChartHorizontal className="h-5 w-5" />
+                Monthly Meetings Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+              {isLoading ? (
+                 <div className="h-[300px] w-full bg-[#2A2A2A] rounded-md animate-pulse flex items-center justify-center text-[#EDE7C7]/60">Loading chart data...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                    {chartData.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available for chart.</div>
+                    ) : (
+                        <BarChart data={chartData}>
+                        <XAxis dataKey="month" stroke="#EDE7C7" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#EDE7C7" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip
+                            cursor={{ fill: '#2A2A2A' }}
+                            contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem' }}
+                        />
+                        <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px' }}/>
+                        <Bar dataKey="total" name="Total Booked" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="confirmed" name="Confirmed" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    )}
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+      {/* Placeholder for RecentActivity - Needs updating too */}
+      {/* <RecentActivity /> */}
     </div>
   )
 }
