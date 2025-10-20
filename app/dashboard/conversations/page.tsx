@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, MessageSquare, Send, MoreVertical, AlertTriangle, RefreshCw } from "lucide-react" // Added RefreshCw
+import { Search, MessageSquare, MoreVertical, AlertTriangle, RefreshCw } from "lucide-react" // Removed Send icon
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast"
@@ -36,7 +36,7 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [messageInput, setMessageInput] = useState("") // Keep for potential future use
+  // Removed messageInput state
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchConversations = async () => {
@@ -89,14 +89,7 @@ export default function ConversationsPage() {
     conv.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  // Handle message sending (placeholder for future implementation)
-  const handleSendMessage = () => {
-    console.log("Sending message:", messageInput)
-    // Here you would typically POST to your bot's API endpoint
-    // For now, it just clears the input
-    setMessageInput("")
-    toast({ title: "Info", description: "Sending messages from dashboard not yet implemented." })
-  }
+  // Removed handleSendMessage function
 
   // Render message if Supabase is not connected
   if (!companySupabase && !isLoading) {
@@ -123,7 +116,7 @@ export default function ConversationsPage() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#EDE7C7] tracking-tight">Conversations</h1>
-          <p className="text-sm text-[#EDE7C7]/70 mt-1.5">View and manage your chatbot conversations.</p>
+          <p className="text-sm text-[#EDE7C7]/70 mt-1.5">View your chatbot conversations.</p>
         </div>
         <Button
           variant="outline"
@@ -208,12 +201,13 @@ export default function ConversationsPage() {
                       </CardTitle>
                       <Badge
                         variant="outline"
-                        className={`mt-1.5 text-xs ${selectedConversation.status === "active" ? "border-green-500/50 text-green-500" : "border-yellow-500/50 text-yellow-500"}`}
+                        className={`mt-1.5 text-xs ${selectedConversation.status === "active" ? "border-green-500/50 text-green-500" : selectedConversation.status === "handover" ? "border-orange-500/50 text-orange-500" : "border-gray-500/50 text-gray-500"}`} // Adjusted handover color
                       >
                         {selectedConversation.status}
                       </Badge>
                     </div>
                   </div>
+                  {/* Keep MoreVertical button for future actions */}
                   <Button variant="ghost" size="icon">
                     <MoreVertical className="h-5 w-5 text-[#EDE7C7]/60" />
                   </Button>
@@ -234,24 +228,7 @@ export default function ConversationsPage() {
                   </div>
                 </ScrollArea>
               </CardContent>
-              <div className="p-4 border-t border-[#2A2A2A] flex-shrink-0">
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="Type a message... (read-only)"
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7] h-11 text-sm"
-                    disabled
-                  />
-                  <Button
-                    className="bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90 h-11 px-5"
-                    onClick={handleSendMessage}
-                    disabled
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
+              {/* Removed the message input and send button section */}
             </>
           ) : (
             <div className="flex items-center justify-center h-full">
