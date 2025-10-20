@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react" // Added useRef
+import type { RealtimeChannel } from "@supabase/supabase-js" // Added type
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,361 +11,442 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Search, Eye, AlertTriangle, Clock, User, Mail, ThumbsUp, ThumbsDown, DollarSign, Phone } from "lucide-react"
-import Link from "next/link"
+import { Search, Eye, User, Mail, Building, Phone, Save, Users, RefreshCw } from "lucide-react" // Added RefreshCw
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast"
 import { format, parseISO } from "date-fns"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
-// Interface matching the 'call_history' table schema
-interface CallHistoryEntry {
-  id: number
-  created_at: string
-  full_name: string | null
-  email: string | null
+// Interface matching the 'leads' table schema
+interface Lead {
+  id: string
+  full_name: string
+  email: string
+  phone: string | null
   company_name: string | null
-  goal: string | null
-  monthly_budget: number | null
-  resulted_in_meeting: boolean | null
-  disqualification_reason: string | null
-  client_number: string | null
-  call_duration_seconds: number | null
+  message: string | null
+  status: string
+  notes: string | null
+  created_at: string
+  updated_at: string
+  source?: string | null
 }
 
-// Renaming component conceptually, filename stays for now
-export function LeadsTable() {
+interface LeadsTableProps {
+  leads: Lead[]
+  initialSearch?: string
+}
+
+// Helper function to format a call entry (used for initial fetch and realtime payloads)
+const formatLeadEntry = (data: any): Lead => ({
+  id: data.id,
+  full_name: data.full_name,
+  email: data.email,
+  phone: data.phone,
+  company_name: data.company_name,
+  message: data.message,
+  status: data.status,
+  notes: data.notes,
+  created_at: data.created_at,
+  updated_at: data.updated_at,
+  source: data.source,
+});
+
+export function LeadsTable({ leads: initialLeads, initialSearch = "" }: LeadsTableProps) {
   const companySupabase = useCompanySupabase()
   const { toast } = useToast()
-  const [callHistory, setCallHistory] = useState<CallHistoryEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterOption, setFilterOption] = useState("all") // Filter state
-  const [selectedCall, setSelectedCall] = useState<CallHistoryEntry | null>(null)
-  const [currentNotes, setCurrentNotes] = useState<string>("") // Client-side only notes
+  
+  const [leads, setLeads] = useState<Lead[]>(initialLeads.map(formatLeadEntry))
+  const [searchTerm, setSearchTerm] = useState(initialSearch) 
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+  const [currentNotes, setCurrentNotes] = useState<string>("")
+  const [currentStatus, setCurrentStatus] = useState<string>("")
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const channelRef = useRef<RealtimeChannel | null>(null) // Ref for Realtime channel
 
+  // Effect 1: Update local leads state when new props arrive (e.g., on manual refresh)
   useEffect(() => {
-    async function fetchCallHistory() {
-      if (!companySupabase) {
-        setIsLoading(false)
-        console.log("CallHistoryTable: Company Supabase client is null.")
-        return
+    setLeads(initialLeads.map(formatLeadEntry));
+  }, [initialLeads]);
+  
+  // Effect 2: Update the search term when navigating from an external link
+  useEffect(() => {
+      if (initialSearch) {
+          setSearchTerm(initialSearch);
       }
-      console.log("CallHistoryTable: Fetching data from 'call_history'...")
-      setIsLoading(true)
-      try {
-        const { data, error, count } = await companySupabase
-          .from("call_history")
-          .select(
-            "id, created_at, full_name, email, company_name, goal, monthly_budget, resulted_in_meeting, disqualification_reason, client_number, call_duration_seconds",
-            { count: "exact" },
-          )
-          .order("created_at", { ascending: false })
+  }, [initialSearch]);
 
-        if (error) {
-          console.error("CallHistoryTable: Error fetching call history:", error)
-          toast({
-            title: "Error",
-            description: `Failed to fetch call history: ${error.message}`,
-            variant: "destructive",
-          })
-          setCallHistory([])
-        } else {
-          console.log(`CallHistoryTable: Successfully fetched ${count ?? "unknown"} calls.`)
-          setCallHistory(data || [])
+
+  // Effect 3: Realtime Subscription Setup
+  useEffect(() => {
+    if (companySupabase) {
+      console.log("LeadsTable: Setting up Realtime subscription...");
+
+      const handleInserts = (payload: any) => {
+        const newLead = formatLeadEntry(payload.new);
+        setLeads(currentLeads => [newLead, ...currentLeads]);
+        toast({ title: "New Lead", description: `Lead from ${newLead.full_name} received.`, duration: 3000 });
+      };
+
+      const handleUpdates = (payload: any) => {
+        const updatedLead = formatLeadEntry(payload.new);
+        setLeads(currentLeads => currentLeads.map(lead =>
+            lead.id === updatedLead.id ? updatedLead : lead
+        ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())); // Re-sort after update
+
+        // Update selected lead if it's the one that changed
+        setSelectedLead(currentSelected =>
+            currentSelected?.id === updatedLead.id ? updatedLead : currentSelected
+        );
+      };
+      
+      const handleDeletes = (payload: any) => {
+          setLeads(currentLeads => currentLeads.filter(lead => lead.id !== payload.old.id));
+          setSelectedLead(currentSelected => (currentSelected?.id === payload.old.id ? null : currentSelected));
+      }
+
+
+      const channel = companySupabase
+        .channel('leads-changes')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'leads' },
+          handleInserts
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'leads' },
+          handleUpdates
+        )
+         .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'leads' },
+          handleDeletes
+        )
+        .subscribe((status, err) => {
+            if (status === 'SUBSCRIBED') { console.log('Leads Realtime channel subscribed.'); }
+            if (status === 'CHANNEL_ERROR') { console.error('Leads Realtime error:', err); }
+        });
+
+      channelRef.current = channel;
+
+      return () => {
+        if (channelRef.current) {
+          companySupabase.removeChannel(channelRef.current);
+          channelRef.current = null;
         }
-      } catch (catchError) {
-        console.error("CallHistoryTable: Unexpected error during fetchCallHistory:", catchError)
-        toast({
-          title: "Fetch Error",
-          description: "An unexpected error occurred while fetching call history.",
-          variant: "destructive",
-        })
-        setCallHistory([])
-      } finally {
-        setIsLoading(false)
+      }
+    } else {
+      // Clear up channel if Supabase client becomes unavailable
+      if (channelRef.current) {
+         const client = companySupabase.removeChannel(channelRef.current);
+         channelRef.current = null;
       }
     }
-    fetchCallHistory()
-  }, [companySupabase, toast])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companySupabase])
 
-  // Filter logic
-  const filteredCalls = callHistory.filter((call) => {
+
+  // Filter logic based on the local 'leads' state
+  const filteredLeads = leads.filter((lead) => {
     const searchLower = searchTerm.toLowerCase()
     const matchesSearch =
-      call.full_name?.toLowerCase().includes(searchLower) ||
-      call.email?.toLowerCase().includes(searchLower) ||
-      call.company_name?.toLowerCase().includes(searchLower)
+      lead.full_name?.toLowerCase().includes(searchLower) ||
+      lead.email?.toLowerCase().includes(searchLower) ||
+      lead.company_name?.toLowerCase().includes(searchLower) ||
+      lead.phone?.includes(searchTerm) ||
+      // Allow searching by part of the conversation_id/lead.id (first 8 chars)
+      lead.id?.toLowerCase().substring(0, 8).includes(searchLower)
 
-    const matchesFilter =
-      filterOption === "all" ||
-      (filterOption === "meeting_yes" && call.resulted_in_meeting === true) ||
-      (filterOption === "meeting_no" && call.resulted_in_meeting === false)
+
+    const matchesFilter = filterStatus === "all" || lead.status === filterStatus
 
     return matchesSearch && matchesFilter
   })
 
-  // Helper to format duration
-  const formatDuration = (seconds: number | null): string => {
-    if (seconds === null || seconds === undefined) return "N/A"
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}m ${remainingSeconds}s`
+  // Helper for status badge colors (remains the same)
+  const getStatusBadge = (status: string) => {
+    let className = "border-[#EDE7C7]/50 text-[#EDE7C7]/60"
+    if (status === "new") className = "border-blue-500/50 text-blue-500"
+    if (status === "contacted") className = "border-yellow-500/50 text-yellow-500"
+    if (status === "qualified") className = "border-teal-500/50 text-teal-500"
+    if (status === "converted") className = "border-green-500/50 text-green-500"
+    if (status === "unqualified") className = "border-red-500/50 text-red-500"
+    return <Badge variant="outline" className={`text-xs capitalize ${className}`}>{status.replace(/_/g, " ")}</Badge>
   }
 
-  // Helper to format currency (assuming ZAR)
-  const formatBudget = (budget: number | null): string => {
-    if (budget === null || budget === undefined) return "N/A"
-    return `R ${budget.toLocaleString("en-ZA")}` // Format for South Africa
+  // Handle opening the dialog and setting initial states
+  const handleViewDetails = (lead: Lead) => {
+    setSelectedLead(lead)
+    setCurrentNotes(lead.notes || "")
+    setCurrentStatus(lead.status)
+    setIsDialogOpen(true)
   }
 
-  // --- RENDER LOGIC ---
-  if (!companySupabase && !isLoading) {
-    return (
-      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardContent className="pt-6">
-          <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3>
-            <p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">
-              Please go to the settings page to connect your bot's database.
-            </p>
-            <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-              <Link href="/dashboard/settings">Go to Settings</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
+  // Handle saving changes (Status and Notes)
+  const handleSaveChanges = async () => {
+    if (!selectedLead || !companySupabase) return
+    setIsSaving(true)
 
-  if (isLoading) {
-    return (
-      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardHeader>
-          <CardTitle className="text-[#EDE7C7]">Call History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-12 min-h-[200px]">
-            <p className="text-base text-[#EDE7C7]/60">Loading call history...</p>
-          </div>
-        </CardContent>
-      </Card>
-    )
+    const updates = {
+      status: currentStatus,
+      notes: currentNotes,
+      updated_at: new Date().toISOString(),
+    }
+
+    try {
+      // The update request is sent. Realtime listener will handle updating the state.
+      const { error } = await companySupabase
+        .from("leads")
+        .update(updates)
+        .eq("id", selectedLead.id)
+
+      if (error) throw error
+
+      // Update the currently selected lead object to prevent stale data in the open dialog.
+      setSelectedLead(prev => ({ ...(prev as Lead), ...updates }));
+
+      toast({ title: "Success", description: "Lead details updated." })
+      setIsDialogOpen(false)
+    } catch (error: any) {
+      console.error("Error updating lead:", error)
+      toast({
+        title: "Error",
+        description: `Failed to update lead: ${error.message}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
-    <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-      <CardHeader>
-        <CardTitle className="text-[#EDE7C7]">Call History ({filteredCalls.length})</CardTitle>
+    <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20 flex flex-col h-[600px]">
+      {/* Card Header with Search and Filter */}
+      <CardHeader className="flex-shrink-0">
+        <CardTitle className="text-[#EDE7C7]">Leads ({filteredLeads.length})</CardTitle>
         <div className="flex flex-col sm:flex-row gap-4 mt-4">
           {/* Search */}
           <div className="relative flex-1">
-            {" "}
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" />{" "}
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#EDE7C7]/40" />
             <Input
-              placeholder="Search name, email, company..."
+              placeholder="Search name, email, company, phone, or Conversation ID"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]"
-            />{" "}
+              className="pl-10 bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7] h-10 text-sm"
+            />
           </div>
           {/* Filter Dropdown */}
-          <Select value={filterOption} onValueChange={setFilterOption}>
-            <SelectTrigger className="w-full sm:w-[220px] bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]">
-              {" "}
-              <SelectValue placeholder="Filter call results" />{" "}
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7] h-10 text-sm">
+              <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]">
-              <SelectItem value="all">All Calls</SelectItem>
-              <SelectItem value="meeting_yes">Resulted in Meeting</SelectItem>
-              <SelectItem value="meeting_no">Did Not Result in Meeting</SelectItem>
-              {/* Add more filters later if needed, e.g., disqualification */}
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="contacted">Contacted</SelectItem>
+              <SelectItem value="qualified">Qualified</SelectItem>
+              <SelectItem value="converted">Converted</SelectItem>
+              <SelectItem value="unqualified">Unqualified</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {callHistory.length === 0 ? (
-            <div className="flex items-center justify-center py-12 min-h-[200px]">
-              <div className="text-center px-4">
-                <Phone className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
-                <p className="text-base text-[#EDE7C7]/60">No call history found.</p>
-              </div>
-            </div>
-          ) : filteredCalls.length === 0 ? (
-            <div className="flex items-center justify-center py-12 min-h-[200px]">
-              <div className="text-center px-4">
-                <Search className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
-                <p className="text-base text-[#EDE7C7]/60">No calls match your current filters.</p>
-              </div>
-            </div>
-          ) : (
-            filteredCalls.map((call) => (
-              <div
-                key={call.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A]"
-              >
-                {/* Call Row Display */}
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <p className="font-medium text-[#EDE7C7]">{call.full_name || "N/A"}</p>
-                    {call.resulted_in_meeting === true && (
-                      <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-                        <ThumbsUp className="h-3 w-3 mr-1" /> Meeting
-                      </Badge>
-                    )}
-                    {call.resulted_in_meeting === false && !call.disqualification_reason && (
-                      <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                        <ThumbsDown className="h-3 w-3 mr-1" /> No Meeting
-                      </Badge>
-                    )}
-                    {call.disqualification_reason && (
-                      <Badge className="bg-red-500/10 text-red-500 border-red-500/20">
-                        <ThumbsDown className="h-3 w-3 mr-1" /> Disqualified
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-sm text-[#EDE7C7]/60 space-y-1">
-                    <p className="flex items-center gap-1.5">
-                      <Mail className="h-3 w-3 flex-shrink-0" /> {call.email || "N/A"}
-                    </p>
-                    {call.company_name && (
-                      <p className="flex items-center gap-1.5">
-                        <User className="h-3 w-3 flex-shrink-0" /> {call.company_name}
-                      </p>
-                    )}
-                  </div>
-                  <p className="text-xs text-[#EDE7C7]/40">{format(parseISO(call.created_at), "MMM d, yyyy h:mm a")}</p>
+      {/* Card Content with Scrollable List */}
+      <CardContent className="flex-1 p-0 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="space-y-3 p-6 pt-0">
+            {leads.length === 0 ? (
+              <div className="flex items-center justify-center py-12 min-h-[200px]">
+                <div className="text-center px-4">
+                  <Users className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                  <p className="text-base text-[#EDE7C7]/60">No leads found.</p>
+                  <p className="text-sm text-[#EDE7C7]/50 mt-1">Leads from the website form will appear here.</p>
                 </div>
-                {/* View Details Button */}
-                <Dialog onOpenChange={(open) => setSelectedCall(open ? call : null)}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-[#EDE7C7]/5 border-[#EDE7C7]/20 text-[#EDE7C7] hover:bg-[#EDE7C7]/10"
-                    >
-                      {" "}
-                      <Eye className="h-4 w-4 mr-2" /> View Details{" "}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-[#1A1A1A] border-[#2A2A2A] max-w-lg">
-                    <DialogHeader>
-                      {" "}
-                      <DialogTitle className="text-[#EDE7C7]">Call Details</DialogTitle>{" "}
-                      <DialogDescription className="text-[#EDE7C7]/60">
-                        Detailed information about the call.
-                      </DialogDescription>{" "}
-                    </DialogHeader>
-                    {selectedCall && (
-                      <div className="space-y-6 pt-4 text-sm">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            {" "}
-                            <Label className="text-[#EDE7C7]/80">Caller Name</Label>{" "}
-                            <p className="text-[#EDE7C7] flex items-center gap-2">
-                              <User className="h-4 w-4" /> {selectedCall.full_name || "N/A"}
-                            </p>{" "}
-                          </div>
-                          <div className="space-y-1">
-                            {" "}
-                            <Label className="text-[#EDE7C7]/80">Caller Email</Label>{" "}
-                            <p className="text-[#EDE7C7] flex items-center gap-2">
-                              <Mail className="h-4 w-4" /> {selectedCall.email || "N/A"}
-                            </p>{" "}
-                          </div>
-                          {selectedCall.company_name && (
-                            <div className="space-y-1">
-                              {" "}
-                              <Label className="text-[#EDE7C7]/80">Company</Label>{" "}
-                              <p className="text-[#EDE7C7]">{selectedCall.company_name}</p>{" "}
-                            </div>
-                          )}
-                          <div className="space-y-1">
-                            {" "}
-                            <Label className="text-[#EDE7C7]/80">Call Time</Label>{" "}
-                            <p className="text-[#EDE7C7] flex items-center gap-2">
-                              <Clock className="h-4 w-4" />{" "}
-                              {format(parseISO(selectedCall.created_at), "MMM d, yyyy h:mm a")}
-                            </p>{" "}
-                          </div>
-                          {selectedCall.call_duration_seconds !== null && (
-                            <div className="space-y-1">
-                              {" "}
-                              <Label className="text-[#EDE7C7]/80">Call Duration</Label>{" "}
-                              <p className="text-[#EDE7C7] flex items-center gap-2">
-                                <Clock className="h-4 w-4" /> {formatDuration(selectedCall.call_duration_seconds)}
-                              </p>{" "}
-                            </div>
-                          )}
-                          {selectedCall.monthly_budget !== null && (
-                            <div className="space-y-1">
-                              {" "}
-                              <Label className="text-[#EDE7C7]/80">Monthly Budget</Label>{" "}
-                              <p className="text-[#EDE7C7] flex items-center gap-2">
-                                <DollarSign className="h-4 w-4" /> {formatBudget(selectedCall.monthly_budget)}
-                              </p>{" "}
-                            </div>
-                          )}
-                        </div>
-                        {selectedCall.goal && (
-                          <div>
-                            {" "}
-                            <Label className="text-[#EDE7C7]/80">Call Goal</Label>{" "}
-                            <p className="text-[#EDE7C7] mt-1 text-sm bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">
-                              {selectedCall.goal}
-                            </p>{" "}
-                          </div>
-                        )}
-                        <div className="space-y-1">
-                          <Label className="text-[#EDE7C7]/80">Resulted in Meeting?</Label>
-                          <p
-                            className={`text-base font-medium ${selectedCall.resulted_in_meeting ? "text-green-500" : "text-yellow-500"}`}
-                          >
-                            {selectedCall.resulted_in_meeting ? "Yes" : "No"}
-                          </p>
-                        </div>
-                        {selectedCall.disqualification_reason && (
-                          <div>
-                            {" "}
-                            <Label className="text-[#EDE7C7]/80">Disqualification Reason</Label>{" "}
-                            <p className="text-[#EDE7C7] mt-1 text-sm bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap">
-                              {selectedCall.disqualification_reason}
-                            </p>{" "}
-                          </div>
-                        )}
-                        {/* Notes (client-side only) */}
-                        <div>
-                          {" "}
-                          <Label htmlFor="notes" className="text-[#EDE7C7]/80">
-                            Notes (Not Saved)
-                          </Label>{" "}
-                          <Textarea
-                            id="notes"
-                            value={currentNotes}
-                            onChange={(e) => setCurrentNotes(e.target.value)}
-                            placeholder="Add temporary notes here..."
-                            className="mt-1 bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]"
-                            rows={3}
-                          />{" "}
-                          <p className="text-xs text-[#EDE7C7]/50 mt-1">Notes are for temporary reference only.</p>{" "}
-                        </div>
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
               </div>
-            ))
-          )}
-        </div>
+            ) : filteredLeads.length === 0 ? (
+              <div className="flex items-center justify-center py-12 min-h-[200px]">
+                <div className="text-center px-4">
+                  <Search className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                  <p className="text-base text-[#EDE7C7]/60">No leads match your current filters.</p>
+                  <p className="text-sm text-[#EDE7C7]/50 mt-1">Try clearing the search or changing the filter.</p>
+                </div>
+              </div>
+            ) : (
+              // Lead List Items
+              filteredLeads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A]"
+                >
+                  {/* Lead Row Display */}
+                  <div className="flex-1 space-y-1.5 overflow-hidden">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="font-medium text-[#EDE7C7] truncate">{lead.full_name || "N/A"}</p>
+                      {getStatusBadge(lead.status)}
+                    </div>
+                    <div className="text-sm text-[#EDE7C7]/60 space-y-1">
+                      <p className="flex items-center gap-1.5 truncate">
+                        <Mail className="h-3.5 w-3.5 flex-shrink-0" /> {lead.email || "N/A"}
+                      </p>
+                      {lead.company_name && (
+                        <p className="flex items-center gap-1.5 truncate">
+                          <Building className="h-3.5 w-3.5 flex-shrink-0" /> {lead.company_name}
+                        </p>
+                      )}
+                      {lead.phone && (
+                        <p className="flex items-center gap-1.5 truncate">
+                          <Phone className="h-3.5 w-3.5 flex-shrink-0" /> {lead.phone}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#EDE7C7]/40 pt-1">
+                      Received: {format(parseISO(lead.created_at), "MMM d, yyyy h:mm a")}
+                    </p>
+                  </div>
+                  {/* View Details Button Trigger */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewDetails(lead)}
+                    className="bg-[#EDE7C7]/5 border-[#EDE7C7]/20 text-[#EDE7C7] hover:bg-[#EDE7C7]/10 flex-shrink-0 mt-2 sm:mt-0"
+                  >
+                    <Eye className="h-4 w-4 mr-2" /> View Details
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
       </CardContent>
+
+      {/* Details Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {/* DialogTrigger is handled by the button onClick */}
+        <DialogContent className="bg-[#1A1A1A] border-[#2A2A2A] max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-[#EDE7C7]">Lead Details</DialogTitle>
+            <DialogDescription className="text-[#EDE7C7]/60">
+              View and update details for {selectedLead?.full_name || "lead"}.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedLead && (
+            <div className="space-y-6 pt-4 text-sm max-h-[70vh] overflow-y-auto pr-2">
+              {/* Contact Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                     <Label className="text-[#EDE7C7]/80">Full Name</Label>
+                     <p className="text-[#EDE7C7] flex items-center gap-2">
+                     <User className="h-4 w-4" /> {selectedLead.full_name || "N/A"}
+                     </p>
+                  </div>
+                  <div className="space-y-1">
+                     <Label className="text-[#EDE7C7]/80">Email</Label>
+                     <p className="text-[#EDE7C7] flex items-center gap-2 truncate">
+                     <Mail className="h-4 w-4 flex-shrink-0" /> {selectedLead.email || "N/A"}
+                     </p>
+                  </div>
+                  {selectedLead.phone && (
+                     <div className="space-y-1">
+                     <Label className="text-[#EDE7C7]/80">Phone</Label>
+                     <p className="text-[#EDE7C7] flex items-center gap-2">
+                        <Phone className="h-4 w-4" /> {selectedLead.phone}
+                     </p>
+                     </div>
+                  )}
+                  {selectedLead.company_name && (
+                     <div className="space-y-1">
+                     <Label className="text-[#EDE7C7]/80">Company</Label>
+                     <p className="text-[#EDE7C7] flex items-center gap-2">
+                        <Building className="h-4 w-4" /> {selectedLead.company_name}
+                     </p>
+                     </div>
+                  )}
+              </div>
+
+              {/* Status Update */}
+              <div className="space-y-2 border-t border-[#2A2A2A] pt-4">
+                <Label htmlFor="leadStatus" className="text-[#EDE7C7]/80 font-medium">Status</Label>
+                <Select value={currentStatus} onValueChange={setCurrentStatus}>
+                  <SelectTrigger id="leadStatus" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1A1A1A] border-[#2A2A2A]">
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="contacted">Contacted</SelectItem>
+                    <SelectItem value="qualified">Qualified</SelectItem>
+                    <SelectItem value="converted">Converted</SelectItem>
+                    <SelectItem value="unqualified">Unqualified</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+               {/* Submission Details (Read-only) */}
+               <div className="space-y-3 border-t border-[#2A2A2A] pt-4">
+                  <div className="flex justify-between">
+                     <span className="text-[#EDE7C7]/60">Received</span>
+                     <span className="text-[#EDE7C7] text-right">
+                        {format(parseISO(selectedLead.created_at), "MMM d, yyyy h:mm a")}
+                     </span>
+                  </div>
+                   {selectedLead.source && (
+                     <div className="flex justify-between">
+                        <span className="text-[#EDE7C7]/60">Source</span>
+                        <span className="text-[#EDE7C7] capitalize">{selectedLead.source.replace(/_/g, " ")}</span>
+                     </div>
+                   )}
+               </div>
+
+              {/* Message / Interest (Read-only) */}
+              {selectedLead.message && (
+                <div className="border-t border-[#2A2A2A] pt-4">
+                  <Label className="text-[#EDE7C7]/80 block mb-2 font-medium">Message / Interest</Label>
+                  <p className="text-[#EDE7C7] bg-[#0A0A0A] p-3 rounded border border-[#2A2A2A] whitespace-pre-wrap max-h-40 overflow-y-auto">
+                    {selectedLead.message}
+                  </p>
+                </div>
+              )}
+
+              {/* Notes (Editable) */}
+              <div className="border-t border-[#2A2A2A] pt-4">
+                <Label htmlFor="leadNotesEdit" className="text-[#EDE7C7]/80 block mb-2 font-medium">
+                  Notes
+                </Label>
+                <Textarea
+                  id="leadNotesEdit"
+                  value={currentNotes}
+                  onChange={(e) => setCurrentNotes(e.target.value)}
+                  placeholder="Add notes about this lead..."
+                  className="mt-1 bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]"
+                  rows={4}
+                />
+              </div>
+            </div>
+          )}
+          {/* Dialog Footer with Save Button */}
+          <DialogFooter className="pt-6 border-t border-[#2A2A2A] mt-6">
+            <DialogClose asChild>
+                <Button variant="outline" className="text-[#EDE7C7]/80 border-[#2A2A2A] hover:bg-[#2A2A2A]/50 hover:text-[#EDE7C7]">Cancel</Button>
+            </DialogClose>
+            <Button
+                onClick={handleSaveChanges}
+                disabled={isSaving || !selectedLead}
+                className="bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90"
+            >
+              {isSaving ? "Saving..." : <><Save className="h-4 w-4 mr-2" /> Save Changes</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

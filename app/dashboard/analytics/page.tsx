@@ -1,12 +1,15 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, MessageSquare, Calendar, AlertTriangle, PieChartIcon, BarChartHorizontal } from "lucide-react"
+import { TrendingUp, MessageSquare, Calendar, AlertTriangle, PieChartIcon, BarChartHorizontal, CalendarIcon } from "lucide-react" // Added CalendarIcon
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-// Import Recharts components
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover" // Added Popover
+import { Calendar as CalendarPicker } from "@/components/ui/calendar" // Added Calendar component
+import { format, subDays, startOfDay, endOfDay } from "date-fns" // Added date-fns functions
+import { DateRange } from "react-day-picker" // Added DateRange type
 import {
   PieChart,
   Pie,
@@ -20,19 +23,20 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts"
+import { cn } from "@/lib/utils" // Import cn utility
 
-// Interface for meeting status data (Pie Chart)
+// ... (Interfaces MeetingStatusData, HourlyActivityData remain the same) ...
 interface MeetingStatusData {
   name: string
   value: number
 }
-// Interface for hourly activity data (Bar Chart)
 interface HourlyActivityData {
   hour: string // e.g., "08", "14"
   meetings: number
 }
 
-// Define colors for the pie chart segments
+
+// ... (COLORS and STATUS_NAMES remain the same) ...
 const COLORS: { [key: string]: string } = {
   confirmed: "#82ca9d",
   pending_confirmation: "#ffc658",
@@ -45,6 +49,7 @@ const STATUS_NAMES: { [key: string]: string } = {
   cancelled: "Cancelled",
 }
 
+
 export default function AnalyticsPage() {
   const companySupabase = useCompanySupabase()
   const [isLoading, setIsLoading] = useState(true)
@@ -54,32 +59,56 @@ export default function AnalyticsPage() {
     confirmationRate: 0,
   })
   const [meetingStatusData, setMeetingStatusData] = useState<MeetingStatusData[]>([])
-  // State for the new hourly chart
   const [hourlyActivityData, setHourlyActivityData] = useState<HourlyActivityData[]>([])
+
+  // State for Date Range Picker
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(startOfDay(new Date()), 29), // Default to last 30 days
+    to: endOfDay(new Date()), // Default to end of today
+  })
 
   useEffect(() => {
     async function fetchAnalytics() {
-      if (!companySupabase) {
+      if (!companySupabase || !dateRange?.from || !dateRange?.to) {
         setIsLoading(false)
+        console.warn("Analytics: Supabase client or date range not ready.");
         return
       }
       setIsLoading(true)
+      console.log(`Analytics: Fetching data from ${format(dateRange.from, "yyyy-MM-dd")} to ${format(dateRange.to, "yyyy-MM-dd")}`);
+
+
+      // Ensure dates are correctly formatted for Supabase (ISO 8601 with timezone)
+      const fromISO = dateRange.from.toISOString()
+      const toISO = dateRange.to.toISOString()
+
       try {
-        const convPromise = companySupabase.from("conversation_history").select("*", { count: "exact", head: true })
-        // Fetch created_at (for hourly chart) and status (for pie chart/KPIs)
-        const meetingsPromise = companySupabase.from("meetings").select("created_at, status")
+        // Add date range filters to queries
+        const convPromise = companySupabase
+            .from("conversation_history")
+            .select("*", { count: "exact", head: true })
+            .gte('created_at', fromISO) // Filter by start date
+            .lte('created_at', toISO); // Filter by end date
+
+        const meetingsPromise = companySupabase
+            .from("meetings")
+            .select("created_at, status")
+            .gte('created_at', fromISO) // Filter by start date
+            .lte('created_at', toISO); // Filter by end date
 
         const [convResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise])
 
+        // Error handling remains the same
         if (convResult.error) throw convResult.error
         if (meetingsResult.error) throw meetingsResult.error
 
+        // Calculations remain the same, but are now based on filtered data
         const meetings = meetingsResult.data || []
         const totalMeetings = meetings.length
         const confirmed = meetings.filter((m) => m.status === "confirmed").length
         const confirmationRate = totalMeetings > 0 ? Math.round((confirmed / totalMeetings) * 100) : 0
 
-        // --- Process data for the Pie Chart ---
+        // Process Pie Chart data (remains the same)
         const statusCounts: { [key: string]: number } = {}
         meetings.forEach((meeting) => {
           const status = meeting.status || "unknown"
@@ -92,43 +121,49 @@ export default function AnalyticsPage() {
           }))
           .sort((a, b) => b.value - a.value)
         setMeetingStatusData(pieDataArray)
-        // --- End Pie Chart processing ---
 
-        // --- Process data for Hourly Bar Chart ---
+        // Process Hourly Bar Chart data (remains the same)
         const hourlyCounts: { [key: number]: number } = {}
         meetings.forEach((meeting) => {
-          const date = new Date(meeting.created_at)
-          if (isNaN(date.getTime())) return // Skip invalid dates
-          const hour = date.getHours() // Get hour (0-23)
-          hourlyCounts[hour] = (hourlyCounts[hour] || 0) + 1
+          try { // Add try-catch for robustness
+            const date = new Date(meeting.created_at)
+            if (isNaN(date.getTime())) return // Skip invalid dates
+            const hour = date.getHours() // Get hour (0-23)
+            hourlyCounts[hour] = (hourlyCounts[hour] || 0) + 1
+          } catch (e) {
+            console.warn("Analytics: Skipping invalid date in hourly processing:", meeting.created_at);
+          }
         })
-        // Create data for all 24 hours, including those with 0 meetings
         const hourlyDataArray: HourlyActivityData[] = Array.from({ length: 24 }, (_, i) => ({
-          hour: i.toString().padStart(2, "0"), // Format as "00", "01", ... "23"
+          hour: i.toString().padStart(2, "0"),
           meetings: hourlyCounts[i] || 0,
         }))
-        console.log("Analytics: Processed Hourly Chart data:", hourlyDataArray)
         setHourlyActivityData(hourlyDataArray)
-        // --- End Hourly Bar Chart processing ---
 
+        // Set metrics based on filtered data
         setMetrics({
           totalConversations: convResult.count || 0,
           totalMeetings: totalMeetings,
           confirmationRate: confirmationRate,
         })
+        console.log("Analytics: Data fetch successful for selected range.");
       } catch (error) {
         console.error("Error fetching analytics:", error)
+        // Reset metrics/charts on error
+        setMetrics({ totalConversations: 0, totalMeetings: 0, confirmationRate: 0 });
+        setMeetingStatusData([]);
+        setHourlyActivityData([]);
       } finally {
         setIsLoading(false)
       }
     }
     fetchAnalytics()
-  }, [companySupabase])
+  // Re-run effect when company client OR dateRange changes
+  }, [companySupabase, dateRange])
 
-  // --- Render logic ---
+  // --- Render logic for disconnected DB remains the same ---
   if (!companySupabase && !isLoading) {
     return (
-      /* ... Database not connected message ... */
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardContent className="pt-6">
           <div className="text-center py-12">
@@ -148,32 +183,113 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-[#EDE7C7]">Analytics</h2>
-        <p className="text-sm sm:text-base text-[#EDE7C7]/60 mt-2">Performance and engagement metrics from your bot.</p>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#EDE7C7]">Analytics</h2>
+          <p className="text-sm sm:text-base text-[#EDE7C7]/60 mt-2">Performance and engagement metrics from your bot.</p>
+        </div>
+         {/* Date Range Picker */}
+        <div className={cn("grid gap-2")}>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="date"
+                variant={"outline"}
+                className={cn(
+                  "w-full sm:w-[300px] justify-start text-left font-normal bg-[#1A1A1A] border-[#2A2A2A] text-[#EDE7C7] hover:bg-[#2A2A2A]/50 hover:text-[#EDE7C7]",
+                  !dateRange && "text-muted-foreground"
+                )}
+                disabled={isLoading}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-[#1A1A1A] border-[#2A2A2A]" align="end">
+              <CalendarPicker
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={(range) => {
+                   // Ensure 'to' date includes the full day
+                   if (range?.to) {
+                       range.to = endOfDay(range.to);
+                   }
+                   setDateRange(range)
+                }}
+                numberOfMonths={2}
+                 // Apply dark theme styles directly if next-themes isn't fully integrated
+                className="dark-calendar-theme" // Add a custom class
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 p-4",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center",
+                  caption_label: "text-sm font-medium text-[#EDE7C7]",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: cn(
+                     "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-[#EDE7C7]"
+                  ),
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex",
+                  head_cell: "text-[#EDE7C7]/60 rounded-md w-9 font-normal text-[0.8rem]",
+                  row: "flex w-full mt-2",
+                  cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected])]:bg-[#2A2A2A] first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 text-[#EDE7C7]",
+                  day: cn(
+                     "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-[#2A2A2A] rounded-md"
+                  ),
+                  day_selected: "bg-[#8B0000] text-[#EDE7C7] hover:bg-[#8B0000]/90 focus:bg-[#8B0000] focus:text-[#EDE7C7]",
+                  day_today: "bg-[#EDE7C7]/10 text-accent-foreground",
+                  day_outside: "text-[#EDE7C7]/40 opacity-50",
+                  day_disabled: "text-[#EDE7C7]/40 opacity-50",
+                  day_range_middle: "aria-selected:bg-[#2A2A2A] aria-selected:text-[#EDE7C7]",
+                  day_hidden: "invisible",
+                }}
+
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-sm sm:text-base text-[#EDE7C7]/60">Loading analytics...</div>
+        <div className="text-center py-12 text-sm sm:text-base text-[#EDE7C7]/60">Loading analytics for selected period...</div>
       ) : (
         <>
+          {/* Stat Cards */}
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+             {/* Render only metrics with values */}
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Conversations</CardTitle>
+                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Conversations</CardTitle>
                 <MessageSquare className="h-4 w-4 text-[#EDE7C7]/60 flex-shrink-0" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalConversations}</div>
+                 <p className="text-xs text-[#EDE7C7]/60 mt-1">&nbsp;</p> {/* Placeholder for consistent height */}
               </CardContent>
             </Card>
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Total Meetings Booked</CardTitle>
+                <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Meetings Booked</CardTitle>
                 <Calendar className="h-4 w-4 text-[#EDE7C7]/60 flex-shrink-0" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalMeetings}</div>
+                 <p className="text-xs text-[#EDE7C7]/60 mt-1">&nbsp;</p>
               </CardContent>
             </Card>
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
@@ -183,16 +299,18 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.confirmationRate}%</div>
-                <p className="text-xs text-[#EDE7C7]/60 mt-1">
+                 <p className="text-xs text-[#EDE7C7]/60 mt-1">
                   {metrics.totalMeetings > 0
-                    ? `${metrics.totalMeetings - (meetingStatusData.find((s) => s.name === "Pending")?.value || 0) - (meetingStatusData.find((s) => s.name === "Cancelled")?.value || 0)} confirmed`
+                    ? `${metrics.totalMeetings - (meetingStatusData.find((s) => s.name === "Pending")?.value || 0) - (meetingStatusData.find((s) => s.name === "Cancelled")?.value || 0)} of ${metrics.totalMeetings} confirmed`
                     : "No meetings yet"}
                 </p>
               </CardContent>
             </Card>
           </div>
 
+          {/* Chart Grid */}
           <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
+            {/* Pie Chart Card (remains the same) */}
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
               <CardHeader>
                 <CardTitle className="text-base sm:text-lg text-[#EDE7C7] flex items-center gap-2">
@@ -206,7 +324,7 @@ export default function AnalyticsPage() {
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center px-4">
                         <PieChartIcon className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
-                        <p className="text-sm text-[#EDE7C7]/60">No meeting data available.</p>
+                        <p className="text-sm text-[#EDE7C7]/60">No meeting data for this period.</p>
                       </div>
                     </div>
                   ) : (
@@ -220,47 +338,36 @@ export default function AnalyticsPage() {
                         innerRadius={50}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                          const RADIAN = Math.PI / 180
-                          const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-                          const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                          const y = cy + radius * Math.sin(-midAngle * RADIAN)
-                          return percent > 0.05 ? (
-                            <text
-                              x={x}
-                              y={y}
-                              fill="#EDE7C7"
-                              textAnchor={x > cx ? "start" : "end"}
-                              dominantBaseline="central"
-                              fontSize={12}
-                            >
-                              {`${(percent * 100).toFixed(0)}%`}
-                            </text>
-                          ) : null
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => { /* ... label logic ... */
+                           const RADIAN = Math.PI / 180
+                           const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+                           const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                           const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                           return percent > 0.05 ? (
+                             <text
+                               x={x}
+                               y={y}
+                               fill="#EDE7C7"
+                               textAnchor={x > cx ? "start" : "end"}
+                               dominantBaseline="central"
+                               fontSize={12}
+                             >
+                               {`${(percent * 100).toFixed(0)}%`}
+                             </text>
+                           ) : null
                         }}
                       >
                         {meetingStatusData.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={
-                              COLORS[entry.name.toLowerCase().replace(/ /g, "_") as keyof typeof COLORS] ||
-                              COLORS.default
-                            }
-                            stroke={
-                              COLORS[entry.name.toLowerCase().replace(/ /g, "_") as keyof typeof COLORS] ||
-                              COLORS.default
-                            }
+                            fill={COLORS[entry.name.toLowerCase().replace(/ /g, "_") as keyof typeof COLORS] || COLORS.default}
+                            stroke={COLORS[entry.name.toLowerCase().replace(/ /g, "_") as keyof typeof COLORS] || COLORS.default}
                           />
                         ))}
                       </Pie>
                       <Tooltip
                         cursor={{ fill: "rgba(42, 42, 42, 0.3)" }}
-                        contentStyle={{
-                          backgroundColor: "rgba(26, 26, 26, 0.9)",
-                          border: "1px solid #2A2A2A",
-                          color: "#EDE7C7",
-                          borderRadius: "0.5rem",
-                        }}
+                        contentStyle={{ backgroundColor: "rgba(26, 26, 26, 0.9)", border: "1px solid #2A2A2A", color: "#EDE7C7", borderRadius: "0.5rem" }}
                         itemStyle={{ color: "#EDE7C7" }}
                         formatter={(value: number, name: string) => [`${value} meetings`, name]}
                       />
@@ -271,6 +378,7 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
+            {/* Bar Chart Card (remains the same) */}
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
               <CardHeader>
                 <CardTitle className="text-base sm:text-lg text-[#EDE7C7] flex items-center gap-2">
@@ -284,7 +392,7 @@ export default function AnalyticsPage() {
                     <div className="flex items-center justify-center h-full">
                       <div className="text-center px-4">
                         <BarChartHorizontal className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
-                        <p className="text-sm text-[#EDE7C7]/60">No meeting data available for hourly breakdown.</p>
+                        <p className="text-sm text-[#EDE7C7]/60">No meeting data for hourly breakdown in this period.</p>
                       </div>
                     </div>
                   ) : (
@@ -296,8 +404,8 @@ export default function AnalyticsPage() {
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(value) => `${value}:00`} // Format hour label
-                        interval={2} // Show every 3rd hour label
+                        tickFormatter={(value) => `${value}:00`}
+                        interval={2}
                         tick={{ fill: "#EDE7C7" }}
                       />
                       <YAxis
@@ -311,12 +419,7 @@ export default function AnalyticsPage() {
                       />
                       <Tooltip
                         cursor={{ fill: "rgba(42, 42, 42, 0.3)" }}
-                        contentStyle={{
-                          backgroundColor: "rgba(26, 26, 26, 0.9)",
-                          border: "1px solid #2A2A2A",
-                          color: "#EDE7C7",
-                          borderRadius: "0.5rem",
-                        }}
+                        contentStyle={{ backgroundColor: "rgba(26, 26, 26, 0.9)", border: "1px solid #2A2A2A", color: "#EDE7C7", borderRadius: "0.5rem" }}
                         labelFormatter={(label) => `Hour: ${label}:00 - ${Number.parseInt(label) + 1}:00`}
                         formatter={(value: number) => [`${value} meetings`, "Meetings Booked"]}
                       />

@@ -29,7 +29,7 @@ export function DashboardSidebar({ mobileMenuOpen, onClose }: DashboardSidebarPr
       <div className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r lg:border-[#2A2A2A] bg-[#0F0F0F] flex-shrink-0">
         <div className="flex h-14 sm:h-16 items-center px-6 border-b border-[#2A2A2A]">
           <Link href="/" className="text-xl font-bold text-[#EDE7C7] hover:text-[#EDE7C7]/80 transition-colors">
-            AI Agents
+            Zappies AI
           </Link>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
@@ -67,7 +67,7 @@ export function DashboardSidebar({ mobileMenuOpen, onClose }: DashboardSidebarPr
             className="text-xl font-bold text-[#EDE7C7] hover:text-[#EDE7C7]/80 transition-colors"
             onClick={onClose}
           >
-            AI Agents
+            Zappies AI
           </Link>
           <Button
             variant="ghost"
