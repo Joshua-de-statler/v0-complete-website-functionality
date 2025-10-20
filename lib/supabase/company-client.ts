@@ -1,6 +1,9 @@
+"use client"
+
 import { createClient } from "@supabase/supabase-js"
 import { useCompany } from "@/components/dashboard/company-provider"
-import { useMemo } from "react" // Import useMemo
+import { useMemo } from "react"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 // This is a custom hook that creates a Supabase client for the current company
 export function useCompanySupabase() {
@@ -16,4 +19,32 @@ export function useCompanySupabase() {
   }, [company]) // The dependency array ensures this only runs when 'company' changes
 
   return client
+}
+
+export async function getCompany(supabase: SupabaseClient, userId: string) {
+  // First, find which company the user belongs to
+  const { data: companyUser, error: companyUserError } = await supabase
+    .from("company_users")
+    .select("company_id")
+    .eq("user_id", userId)
+    .single()
+
+  if (companyUserError || !companyUser) {
+    console.error("[v0] Error fetching company_user:", companyUserError)
+    return null
+  }
+
+  // Then fetch the company details
+  const { data: company, error: companyError } = await supabase
+    .from("companies")
+    .select("*")
+    .eq("id", companyUser.company_id)
+    .single()
+
+  if (companyError) {
+    console.error("[v0] Error fetching company:", companyError)
+    return null
+  }
+
+  return company
 }

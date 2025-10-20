@@ -1,15 +1,15 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, MessageSquare, Calendar, AlertTriangle, PieChartIcon, BarChartHorizontal, CalendarIcon } from "lucide-react" // Added CalendarIcon
+import { TrendingUp, MessageSquare, Calendar, AlertTriangle, PieChartIcon, BarChartHorizontal, CalendarIcon, CheckCheck, XCircle, Clock } from "lucide-react"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover" // Added Popover
-import { Calendar as CalendarPicker } from "@/components/ui/calendar" // Added Calendar component
-import { format, subDays, startOfDay, endOfDay } from "date-fns" // Added date-fns functions
-import { DateRange } from "react-day-picker" // Added DateRange type
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarPicker } from "@/components/ui/calendar"
+import { format, subDays, startOfDay, endOfDay } from "date-fns"
+import { DateRange } from "react-day-picker"
 import {
   PieChart,
   Pie,
@@ -23,20 +23,37 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts"
-import { cn } from "@/lib/utils" // Import cn utility
+import { cn } from "@/lib/utils"
+import type { Metadata } from "next" // Import Metadata
 
-// ... (Interfaces MeetingStatusData, HourlyActivityData remain the same) ...
+// --- METADATA ---
+export const metadata: Metadata = {
+  title: "Analytics | Zappies AI Dashboard",
+  description: "Detailed performance reports, metrics, and visualization for your AI agent.",
+}
+// --- END METADATA ---
+
+
+// Interface for meeting status data (Pie Chart)
 interface MeetingStatusData {
   name: string
   value: number
 }
+// Interface for hourly activity data (Bar Chart)
 interface HourlyActivityData {
   hour: string // e.g., "08", "14"
   meetings: number
 }
 
+// Interface for summary table data
+interface AnalyticsSummary {
+  metric: string
+  value: string | number
+  icon: React.ElementType
+  color: string
+}
 
-// ... (COLORS and STATUS_NAMES remain the same) ...
+// Define colors for the pie chart segments
 const COLORS: { [key: string]: string } = {
   confirmed: "#82ca9d",
   pending_confirmation: "#ffc658",
@@ -57,11 +74,13 @@ export default function AnalyticsPage() {
     totalConversations: 0,
     totalMeetings: 0,
     confirmationRate: 0,
+    // New totals needed for the summary table
+    confirmedMeetings: 0,
+    cancelledMeetings: 0,
   })
   const [meetingStatusData, setMeetingStatusData] = useState<MeetingStatusData[]>([])
   const [hourlyActivityData, setHourlyActivityData] = useState<HourlyActivityData[]>([])
-
-  // State for Date Range Picker
+  
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(startOfDay(new Date()), 29), // Default to last 30 days
     to: endOfDay(new Date()), // Default to end of today
@@ -87,14 +106,14 @@ export default function AnalyticsPage() {
         const convPromise = companySupabase
             .from("conversation_history")
             .select("*", { count: "exact", head: true })
-            .gte('created_at', fromISO) // Filter by start date
-            .lte('created_at', toISO); // Filter by end date
+            .gte('created_at', fromISO)
+            .lte('created_at', toISO);
 
         const meetingsPromise = companySupabase
             .from("meetings")
             .select("created_at, status")
-            .gte('created_at', fromISO) // Filter by start date
-            .lte('created_at', toISO); // Filter by end date
+            .gte('created_at', fromISO)
+            .lte('created_at', toISO);
 
         const [convResult, meetingsResult] = await Promise.all([convPromise, meetingsPromise])
 
@@ -105,8 +124,9 @@ export default function AnalyticsPage() {
         // Calculations remain the same, but are now based on filtered data
         const meetings = meetingsResult.data || []
         const totalMeetings = meetings.length
-        const confirmed = meetings.filter((m) => m.status === "confirmed").length
-        const confirmationRate = totalMeetings > 0 ? Math.round((confirmed / totalMeetings) * 100) : 0
+        const confirmedMeetings = meetings.filter((m) => m.status === "confirmed").length
+        const cancelledMeetings = meetings.filter((m) => m.status === "cancelled").length
+        const confirmationRate = totalMeetings > 0 ? Math.round((confirmedMeetings / totalMeetings) * 100) : 0
 
         // Process Pie Chart data (remains the same)
         const statusCounts: { [key: string]: number } = {}
@@ -125,9 +145,9 @@ export default function AnalyticsPage() {
         // Process Hourly Bar Chart data (remains the same)
         const hourlyCounts: { [key: number]: number } = {}
         meetings.forEach((meeting) => {
-          try { // Add try-catch for robustness
+          try {
             const date = new Date(meeting.created_at)
-            if (isNaN(date.getTime())) return // Skip invalid dates
+            if (isNaN(date.getTime())) return
             const hour = date.getHours() // Get hour (0-23)
             hourlyCounts[hour] = (hourlyCounts[hour] || 0) + 1
           } catch (e) {
@@ -145,21 +165,52 @@ export default function AnalyticsPage() {
           totalConversations: convResult.count || 0,
           totalMeetings: totalMeetings,
           confirmationRate: confirmationRate,
+          confirmedMeetings: confirmedMeetings,
+          cancelledMeetings: cancelledMeetings,
         })
         console.log("Analytics: Data fetch successful for selected range.");
       } catch (error) {
         console.error("Error fetching analytics:", error)
         // Reset metrics/charts on error
-        setMetrics({ totalConversations: 0, totalMeetings: 0, confirmationRate: 0 });
+        setMetrics({ totalConversations: 0, totalMeetings: 0, confirmationRate: 0, confirmedMeetings: 0, cancelledMeetings: 0 });
         setMeetingStatusData([]);
         setHourlyActivityData([]);
       } finally {
         setIsLoading(false)
       }
     }
-    fetchAnalytics()
   // Re-run effect when company client OR dateRange changes
   }, [companySupabase, dateRange])
+
+
+  // Data array for the summary table
+  const summaryData: AnalyticsSummary[] = [
+    { 
+      metric: "Confirmed Meetings", 
+      value: metrics.confirmedMeetings, 
+      icon: CheckCheck, 
+      color: "text-green-500" 
+    },
+    { 
+      metric: "Pending Meetings", 
+      value: metrics.totalMeetings - metrics.confirmedMeetings - metrics.cancelledMeetings, 
+      icon: Clock, 
+      color: "text-yellow-500" 
+    },
+    { 
+      metric: "Canceled Meetings", 
+      value: metrics.cancelledMeetings, 
+      icon: XCircle, 
+      color: "text-red-500" 
+    },
+    { 
+      metric: "Average Conversions / Day", 
+      value: metrics.totalMeetings > 0 && dateRange?.from && dateRange?.to ? (metrics.totalMeetings / (Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)))).toFixed(2) : '0.00', 
+      icon: TrendingUp, 
+      color: "text-blue-400" 
+    },
+  ];
+
 
   // --- Render logic for disconnected DB remains the same ---
   if (!companySupabase && !isLoading) {
@@ -183,13 +234,13 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Page Header */}
+      {/* Page Header and Date Range Picker */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-[#EDE7C7]">Analytics</h2>
           <p className="text-sm sm:text-base text-[#EDE7C7]/60 mt-2">Performance and engagement metrics from your bot.</p>
         </div>
-         {/* Date Range Picker */}
+         {/* Date Range Picker UI */}
         <div className={cn("grid gap-2")}>
           <Popover>
             <PopoverTrigger asChild>
@@ -223,15 +274,13 @@ export default function AnalyticsPage() {
                 defaultMonth={dateRange?.from}
                 selected={dateRange}
                 onSelect={(range) => {
-                   // Ensure 'to' date includes the full day
                    if (range?.to) {
                        range.to = endOfDay(range.to);
                    }
                    setDateRange(range)
                 }}
                 numberOfMonths={2}
-                 // Apply dark theme styles directly if next-themes isn't fully integrated
-                className="dark-calendar-theme" // Add a custom class
+                className="dark-calendar-theme"
                 classNames={{
                   months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 p-4",
                   month: "space-y-4",
@@ -269,9 +318,8 @@ export default function AnalyticsPage() {
         <div className="text-center py-12 text-sm sm:text-base text-[#EDE7C7]/60">Loading analytics for selected period...</div>
       ) : (
         <>
-          {/* Stat Cards */}
+          {/* KPI Stat Cards */}
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-             {/* Render only metrics with values */}
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-[#EDE7C7]/80">Conversations</CardTitle>
@@ -279,7 +327,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalConversations}</div>
-                 <p className="text-xs text-[#EDE7C7]/60 mt-1">&nbsp;</p> {/* Placeholder for consistent height */}
+                 <p className="text-xs text-[#EDE7C7]/60 mt-1">in selected range</p>
               </CardContent>
             </Card>
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
@@ -289,7 +337,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.totalMeetings}</div>
-                 <p className="text-xs text-[#EDE7C7]/60 mt-1">&nbsp;</p>
+                 <p className="text-xs text-[#EDE7C7]/60 mt-1">in selected range</p>
               </CardContent>
             </Card>
             <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
@@ -301,12 +349,33 @@ export default function AnalyticsPage() {
                 <div className="text-2xl font-bold text-[#EDE7C7]">{metrics.confirmationRate}%</div>
                  <p className="text-xs text-[#EDE7C7]/60 mt-1">
                   {metrics.totalMeetings > 0
-                    ? `${metrics.totalMeetings - (meetingStatusData.find((s) => s.name === "Pending")?.value || 0) - (meetingStatusData.find((s) => s.name === "Cancelled")?.value || 0)} of ${metrics.totalMeetings} confirmed`
+                    ? `${metrics.confirmedMeetings} of ${metrics.totalMeetings} confirmed`
                     : "No meetings yet"}
                 </p>
               </CardContent>
             </Card>
           </div>
+          
+          {/* Advanced Analytics Summary Table */}
+          <Card className="bg-[#1A1A1A] border-[#2A2A2A] transition-all duration-200 hover:border-[#EDE7C7]/20">
+              <CardHeader>
+                  <CardTitle className="text-lg text-[#EDE7C7] flex items-center gap-2">
+                      <BarChartHorizontal className="h-5 w-5 flex-shrink-0" />
+                      <span>Summary for Period</span>
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {summaryData.map((item) => (
+                           <div key={item.metric} className="flex flex-col items-center justify-center p-4 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg h-full">
+                               <item.icon className={cn("h-6 w-6 mb-2", item.color)} />
+                               <div className="text-xl font-bold text-[#EDE7C7]">{item.value}</div>
+                               <div className="text-xs text-[#EDE7C7]/60 text-center mt-1">{item.metric}</div>
+                           </div>
+                      ))}
+                  </div>
+              </CardContent>
+          </Card>
 
           {/* Chart Grid */}
           <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
@@ -338,7 +407,7 @@ export default function AnalyticsPage() {
                         innerRadius={50}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => { /* ... label logic ... */
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => { 
                            const RADIAN = Math.PI / 180
                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5
                            const x = cx + radius * Math.cos(-midAngle * RADIAN)

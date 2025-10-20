@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react" // Added useRef
-import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js" // Added Supabase types
+import { useState, useEffect, useRef } from "react"
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +26,15 @@ import { useToast } from "@/hooks/use-toast"
 import { format, parseISO } from "date-fns"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import type { Metadata } from "next" // Import Metadata
+
+// --- METADATA ---
+export const metadata: Metadata = {
+  title: "Voice Calls | Zappies AI Dashboard",
+  description: "Review and log details for all voice calls handled by your AI agent.",
+}
+// --- END METADATA ---
+
 
 // Interface matching the 'call_history' table schema
 interface CallHistoryEntry {
@@ -59,6 +68,21 @@ const formatCallEntry = (data: any): CallHistoryEntry => ({
   notes: data.notes,
 });
 
+// --- Skeleton Component for Call List Items ---
+const CallItemSkeleton = () => (
+  <div className="w-full p-4 flex items-start gap-4 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] animate-pulse">
+    <div className="h-10 w-10 bg-[#2A2A2A] rounded-full flex-shrink-0" />
+    <div className="flex-1 space-y-2 pt-1">
+      <div className="flex justify-between items-center">
+        <div className="h-4 w-1/3 bg-[#2A2A2A] rounded" />
+        <div className="h-4 w-1/6 bg-[#2A2A2A] rounded" />
+      </div>
+      <div className="h-3 w-1/2 bg-[#2A2A2A] rounded" />
+      <div className="h-3 w-1/4 bg-[#2A2A2A] rounded" />
+    </div>
+  </div>
+);
+
 
 export default function CallsPage() {
   const companySupabase = useCompanySupabase()
@@ -71,237 +95,84 @@ export default function CallsPage() {
   const [currentNotes, setCurrentNotes] = useState<string>("")
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const channelRef = useRef<RealtimeChannel | null>(null) // Ref for Realtime channel
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
   const fetchCallHistory = async () => {
-    if (!companySupabase) {
-      setIsLoading(false)
-      setCallHistory([]);
-      return
-    }
-    setIsLoading(true)
+    if (!companySupabase) { setIsLoading(false); setCallHistory([]); return; } setIsLoading(true);
     try {
       const { data, error, count } = await companySupabase
         .from("call_history")
-        .select(
-          "id, created_at, full_name, email, company_name, goal, monthly_budget, resulted_in_meeting, disqualification_reason, client_number, call_duration_seconds, notes",
-          { count: "exact" },
-        )
+        .select("id, created_at, full_name, email, company_name, goal, monthly_budget, resulted_in_meeting, disqualification_reason, client_number, call_duration_seconds, notes", { count: "exact" })
         .order("created_at", { ascending: false })
-
       if (error) throw error
-
-      console.log(`CallsPage: Successfully fetched ${count ?? "unknown"} calls.`)
-      setCallHistory((data || []).map(formatCallEntry)) // Use helper for consistency
+      setCallHistory((data || []).map(formatCallEntry))
     } catch (error: any) {
-      console.error("CallsPage: Error fetching call history:", error)
-      toast({
-        title: "Error",
-        description: `Failed to fetch call history: ${error.message}.`,
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: `Failed to fetch call history: ${error.message}.`, variant: "destructive", });
       setCallHistory([])
-    } finally {
-      setIsLoading(false)
-    }
+    } finally { setIsLoading(false) }
   }
 
-  // --- Realtime Subscription Effect ---
+  // --- Realtime Subscription Effect (remains the same) ---
   useEffect(() => {
     if (companySupabase) {
       fetchCallHistory()
 
-      console.log("CallsPage: Setting up Realtime subscription...");
-
-      const handleInserts = (payload: any) => {
-        const newCall = formatCallEntry(payload.new);
-        setCallHistory(currentHistory => [newCall, ...currentHistory]);
-      };
-
+      const handleInserts = (payload: any) => { const newCall = formatCallEntry(payload.new); setCallHistory(currentHistory => [newCall, ...currentHistory]); };
       const handleUpdates = (payload: any) => {
         const updatedCall = formatCallEntry(payload.new);
-        setCallHistory(currentHistory => currentHistory.map(call =>
-            call.id === updatedCall.id ? updatedCall : call
-        ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())); // Re-sort after update
-
-        // Update selected call if it's the one that changed
-        setSelectedCall(currentSelected =>
-            currentSelected?.id === updatedCall.id ? updatedCall : currentSelected
-        );
+        setCallHistory(currentHistory => currentHistory.map(call => call.id === updatedCall.id ? updatedCall : call).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        setSelectedCall(currentSelected => currentSelected?.id === updatedCall.id ? updatedCall : currentSelected);
       };
-      
-      const handleDeletes = (payload: any) => {
-          setCallHistory(currentHistory => currentHistory.filter(call => call.id !== payload.old.id));
-          setSelectedCall(currentSelected => (currentSelected?.id === payload.old.id ? null : currentSelected));
-      }
-
+      const handleDeletes = (payload: any) => { setCallHistory(currentHistory => currentHistory.filter(call => call.id !== payload.old.id)); setSelectedCall(currentSelected => (currentSelected?.id === payload.old.id ? null : currentSelected)); }
 
       const channel = companySupabase
         .channel('call-history-changes')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'call_history' },
-          handleInserts
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'call_history' },
-          handleUpdates
-        )
-         .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'call_history' },
-          handleDeletes
-        )
-        .subscribe((status, err) => {
-            if (status === 'SUBSCRIBED') { console.log('Calls Realtime channel subscribed.'); }
-            if (status === 'CHANNEL_ERROR') { console.error('Calls Realtime error:', err); }
-        });
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_history' }, handleInserts)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_history' }, handleUpdates)
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'call_history' }, handleDeletes)
+        .subscribe();
 
       channelRef.current = channel;
-
-      return () => {
-        if (channelRef.current) {
-          companySupabase.removeChannel(channelRef.current);
-          channelRef.current = null;
-        }
-      }
-    } else {
-      setIsLoading(false);
-      setCallHistory([]);
-      setSelectedCall(null);
-    }
+      return () => { if (channelRef.current) { companySupabase.removeChannel(channelRef.current); channelRef.current = null; } }
+    } else { setIsLoading(false); setCallHistory([]); setSelectedCall(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companySupabase])
 
   // Filter logic (remains the same)
   const filteredCalls = callHistory.filter((call) => {
     const searchLower = searchQuery.toLowerCase()
-    const matchesSearch =
-      call.full_name?.toLowerCase().includes(searchLower) ||
-      call.email?.toLowerCase().includes(searchLower) ||
-      call.client_number?.includes(searchQuery) ||
-      call.company_name?.toLowerCase().includes(searchLower)
-
-    const matchesFilter =
-      filterOption === "all" ||
-      (filterOption === "meeting_yes" && call.resulted_in_meeting === true) ||
-      (filterOption === "meeting_no" && call.resulted_in_meeting === false && !call.disqualification_reason) ||
-      (filterOption === "disqualified" && !!call.disqualification_reason)
-
+    const matchesSearch = call.full_name?.toLowerCase().includes(searchLower) || call.email?.toLowerCase().includes(searchLower) || call.client_number?.includes(searchQuery) || call.company_name?.toLowerCase().includes(searchLower)
+    const matchesFilter = filterOption === "all" || (filterOption === "meeting_yes" && call.resulted_in_meeting === true) || (filterOption === "meeting_no" && call.resulted_in_meeting === false && !call.disqualification_reason) || (filterOption === "disqualified" && !!call.disqualification_reason)
     return matchesSearch && matchesFilter
   })
 
-  // Format duration (remains the same)
-  const formatDuration = (seconds: number | null): string => {
-    if (seconds === null || seconds === undefined) return "--"
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}m ${remainingSeconds}s`
+  // Formatters and Badge helper remain the same
+  const formatDuration = (seconds: number | null): string => { if (seconds === null || seconds === undefined) return "--"; const minutes = Math.floor(seconds / 60); const remainingSeconds = seconds % 60; return `${minutes}m ${remainingSeconds}s`; }
+  const formatBudget = (budget: number | null): string => { if (budget === null || budget === undefined) return "N/A"; return `R ${budget.toLocaleString("en-ZA")}`; }
+  const getOutcomeBadge = (call: CallHistoryEntry) => { /* ... */
+    if (call.resulted_in_meeting === true) { return ( <Badge variant="outline" className="border-green-500/50 text-green-500 text-xs">Meeting Booked</Badge> ) }
+    if (call.disqualification_reason) { return ( <Badge variant="outline" className="border-red-500/50 text-red-500 text-xs">Disqualified</Badge> ) }
+    if (call.resulted_in_meeting === false) { return ( <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 text-xs">No Meeting</Badge> ) }
+    return ( <Badge variant="outline" className="border-gray-500/50 text-gray-500 text-xs">Unknown Outcome</Badge> )
   }
 
-  // Format Budget (remains the same)
-  const formatBudget = (budget: number | null): string => {
-    if (budget === null || budget === undefined) return "N/A"
-    return `R ${budget.toLocaleString("en-ZA")}`
-  }
-
-  // Outcome badge (remains the same)
-  const getOutcomeBadge = (call: CallHistoryEntry) => {
-    if (call.resulted_in_meeting === true) {
-      return (
-        <Badge variant="outline" className="border-green-500/50 text-green-500 text-xs">
-          Meeting Booked
-        </Badge>
-      )
-    }
-    if (call.disqualification_reason) {
-      return (
-        <Badge variant="outline" className="border-red-500/50 text-red-500 text-xs">
-          Disqualified
-        </Badge>
-      )
-    }
-    if (call.resulted_in_meeting === false) {
-      return (
-        <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 text-xs">
-          No Meeting
-        </Badge>
-      )
-    }
-    return (
-      <Badge variant="outline" className="border-gray-500/50 text-gray-500 text-xs">
-        Unknown Outcome
-      </Badge>
-    )
-  }
-
-  // Handle opening dialog (remains the same)
-  const handleViewDetails = (call: CallHistoryEntry) => {
-    setSelectedCall(call)
-    setCurrentNotes(call.notes || "")
-    setIsDialogOpen(true)
-  }
-
-  // Handle saving notes (remains the same)
-  const handleSaveNotes = async () => {
-    if (!selectedCall || !companySupabase) return
-    setIsSavingNotes(true)
-
-    const updates = {
-      notes: currentNotes,
-    }
-
+  // Handle updates and saves remain the same
+  const handleViewDetails = (call: CallHistoryEntry) => { setSelectedCall(call); setCurrentNotes(call.notes || ""); setIsDialogOpen(true); }
+  const handleSaveNotes = async () => { /* ... */
+    if (!selectedCall || !companySupabase) return; setIsSavingNotes(true); const updates = { notes: currentNotes, };
     try {
-      const { error } = await companySupabase
-        .from("call_history")
-        .update(updates)
-        .eq("id", selectedCall.id)
-
-      if (error) throw error
-
-      // Update local state (triggers handleUpdates in realtime listener)
-      // We rely on the realtime listener (handleUpdates) to update state after this point.
-      // If realtime is not enabled, this might lead to inconsistent state.
-      // For now, let's keep the explicit update for robustness if realtime fails.
-      setCallHistory((prev) =>
-        prev.map((call) =>
-          call.id === selectedCall.id ? { ...call, notes: currentNotes } : call,
-        ),
-      )
-      setSelectedCall({ ...selectedCall, notes: currentNotes }) // Update selected call state too
-
-      toast({ title: "Success", description: "Notes saved successfully." })
+      const { error } = await companySupabase.from("call_history").update(updates).eq("id", selectedCall.id);
+      if (error) throw error;
+      setSelectedCall({ ...selectedCall, notes: currentNotes });
+      toast({ title: "Success", description: "Notes saved successfully." });
     } catch (error: any) {
-      console.error("Error saving notes:", error)
-      toast({
-        title: "Error",
-        description: `Failed to save notes: ${error.message}`,
-        variant: "destructive",
-      })
-    } finally {
-      setIsSavingNotes(false)
-    }
+      toast({ title: "Error", description: `Failed to save notes: ${error.message}`, variant: "destructive", });
+    } finally { setIsSavingNotes(false); }
   }
 
   // --- RENDER LOGIC ---
-  if (!companySupabase && !isLoading && callHistory.length === 0) {
-     return (
-       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-         <CardContent className="pt-6">
-           <div className="text-center py-12">
-             <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-             <h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3>
-             <p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">
-               Please go to the settings page to connect your bot's database.
-             </p>
-             <Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-               <Link href="/dashboard/settings">Go to Settings</Link>
-             </Button>
-           </div>
-         </CardContent>
-       </Card>
-     )
+  if (!companySupabase && !isLoading && callHistory.length === 0) { /* ... */
+     return ( <Card className="bg-[#1A1A1A] border-[#2A2A2A]"><CardContent className="pt-6"><div className="text-center py-12"><AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" /><h3 className="text-xl font-bold text-[#EDE7C7]">Database Not Connected</h3><p className="text-[#EDE7C7]/60 mt-2 max-w-md mx-auto">Please go to the settings page to connect your bot's database.</p><Button asChild className="mt-6 bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90"><Link href="/dashboard/settings">Go to Settings</Link></Button></div></CardContent></Card> )
    }
 
   return (
@@ -318,9 +189,14 @@ export default function CallsPage() {
           </CardHeader>
           <CardContent className="p-0 flex-1">
             <ScrollArea className="h-full">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-full min-h-[200px]">
-                  <p className="text-base text-[#EDE7C7]/60">Loading calls...</p>
+              {isLoading && callHistory.length === 0 ? (
+                // Use Skeletons when initial load is happening and no data exists
+                <div className="space-y-3 p-6 pt-0">
+                    <CallItemSkeleton />
+                    <CallItemSkeleton />
+                    <CallItemSkeleton />
+                    <CallItemSkeleton />
+                    <CallItemSkeleton />
                 </div>
               ) : callHistory.length === 0 ? (
                  <div className="flex items-center justify-center h-full min-h-[200px]">

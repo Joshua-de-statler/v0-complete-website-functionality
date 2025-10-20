@@ -17,7 +17,7 @@ import {
   Users,
   CheckCircle,
   Inbox,
-  Link as LinkIcon // Added Link icon
+  Link as LinkIcon
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -31,7 +31,16 @@ import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useRouter } from "next/navigation" // Added useRouter
+import { useRouter } from "next/navigation"
+import type { Metadata } from "next" // Import Metadata
+
+// --- METADATA ---
+export const metadata: Metadata = {
+  title: "Conversations | Zappies AI Dashboard",
+  description: "View and manage all chat conversations handled by your AI agent.",
+}
+// --- END METADATA ---
+
 
 // Interfaces
 interface Message {
@@ -54,10 +63,9 @@ interface Conversation {
 
 // Helper function to format a new conversation payload
 const formatNewConversation = (payload: any): Conversation => {
-  // Add defensive checks for payload structure
   const history = payload.new?.history || [];
   const lastMessageContent = history?.[history.length - 1]?.data?.content || "No messages";
-  const createdAt = payload.new?.created_at || new Date().toISOString(); // Fallback to current time
+  const createdAt = payload.new?.created_at || new Date().toISOString();
 
   return {
     conversation_id: payload.new?.conversation_id || 'unknown-id',
@@ -70,10 +78,21 @@ const formatNewConversation = (payload: any): Conversation => {
   }
 }
 
+// --- Skeleton Component for Conversation List Items ---
+const ConversationItemSkeleton = () => (
+    <div className="w-full p-4 flex items-start gap-3 rounded-lg bg-[#2A2A2A] animate-pulse">
+        <div className="h-11 w-11 bg-[#3A3A3A] rounded-full flex-shrink-0" />
+        <div className="flex-1 space-y-2 pt-1">
+            <div className="h-4 w-2/3 bg-[#3A3A3A] rounded" />
+            <div className="h-3 w-4/5 bg-[#3A3A3A] rounded" />
+        </div>
+    </div>
+);
+
 
 export default function ConversationsPage() {
   const companySupabase = useCompanySupabase()
-  const router = useRouter() // Initialize router
+  const router = useRouter()
   const { toast } = useToast()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -82,159 +101,169 @@ export default function ConversationsPage() {
   const channelRef = useRef<RealtimeChannel | null>(null)
 
   const fetchConversations = async () => {
-    // Check added here as well for safety, though useEffect handles it
     if (!companySupabase) {
       setIsLoading(false)
       console.log("Conversations Fetch: Company Supabase client not available.")
-      setConversations([]); // Ensure conversations are cleared if client disappears
+      setConversations([]);
       return
     }
     console.log("Conversations: Fetching initial data...")
     setIsLoading(true)
+    // Filter out 'archived' status from the initial fetch for a clean list
     const { data, error } = await companySupabase
       .from("conversation_history")
       .select("conversation_id, history, status, created_at")
+      .neq('status', 'archived') // Filter out archived conversations
       .order("created_at", { ascending: false })
 
     if (error) {
       toast({ title: "Error", description: "Failed to fetch conversations.", variant: "destructive" })
       console.error(error)
-      setConversations([]); // Clear on error
+      setConversations([]);
     } else {
-      const formattedConversations = (data || []).map(formatNewConversation); // Use helper for consistency
+      const formattedConversations = (data || []).map(formatNewConversation);
       setConversations(formattedConversations)
-      // Select the first conversation by default
       if (formattedConversations.length > 0 && !selectedConversation) {
         setSelectedConversation(formattedConversations[0])
       } else if (formattedConversations.length === 0) {
-        setSelectedConversation(null) // Clear selection if no conversations
+        setSelectedConversation(null)
       }
       console.log("Conversations: Initial data fetched successfully.", formattedConversations.length);
     }
     setIsLoading(false)
   }
 
-  // Effect for initial fetch and setting up subscription
   useEffect(() => {
     if (companySupabase) {
-      // Fetch initial data
       fetchConversations()
 
-      // --- Setup Realtime Subscription ---
-      console.log("Conversations: Setting up Realtime subscription...");
+      // Handle new conversations (INSERT)
       const handleInserts = (payload: any) => {
-        console.log('Realtime INSERT received:', payload)
-        const newConversation = formatNewConversation(payload);
-        // Add new conversation to the top of the list
-        setConversations(currentConversations => [newConversation, ...currentConversations]);
+        if (payload.new.status !== 'archived') { // Ignore archived inserts (just in case)
+             const newConversation = formatNewConversation(payload);
+             setConversations(currentConversations => [newConversation, ...currentConversations]);
+        }
       }
       
+      // Handle status changes (UPDATE)
       const handleUpdates = (payload: any) => {
-        console.log('Realtime UPDATE received:', payload)
         const updatedConv = formatNewConversation(payload);
-         // Update the local conversation list
-        setConversations(currentConversations => currentConversations.map(conv =>
-            conv.conversation_id === updatedConv.conversation_id ? updatedConv : conv
-        ));
-        // Update the currently selected conversation if it's the one being updated
+
+        setConversations(currentConversations => {
+            if (updatedConv.status === 'archived') {
+                // If status is archived, remove it from the list
+                return currentConversations.filter(c => c.conversation_id !== updatedConv.conversation_id);
+            }
+            // Otherwise, update the existing conversation
+            return currentConversations.map(conv =>
+                conv.conversation_id === updatedConv.conversation_id ? updatedConv : conv
+            );
+        });
+
+        // Update selected conversation if it's the one being viewed
         setSelectedConversation(currentSelected =>
             currentSelected?.conversation_id === updatedConv.conversation_id ? updatedConv : currentSelected
         );
       }
+
+      // Handle deletion
+      const handleDeletes = (payload: any) => {
+          setConversations(currentConversations => currentConversations.filter(c => c.conversation_id !== payload.old.conversation_id));
+          setSelectedConversation(currentSelected => (currentSelected?.conversation_id === payload.old.conversation_id ? null : currentSelected));
+      }
       
       const channel = companySupabase
-        .channel('conversation-changes') // Renamed channel for better scope
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'conversation_history' },
-          handleInserts
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'conversation_history' },
-          handleUpdates
-        )
-        .subscribe((status, err) => {
-            if (status === 'SUBSCRIBED') {
-                console.log('Realtime channel subscribed successfully!');
-            }
-            if (status === 'CHANNEL_ERROR') {
-                console.error('Realtime channel error:', err);
-                toast({ title: "Realtime Error", description: `Subscription failed: ${err?.message}`, variant: "destructive" });
-            }
-            if (status === 'TIMED_OUT') {
-                console.warn('Realtime channel subscription timed out.');
-                 toast({ title: "Realtime Warning", description: "Subscription timed out.", variant: "default" });
-            }
-        });
+        .channel('conversation-changes')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_history' }, handleInserts)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_history' }, handleUpdates)
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'conversation_history' }, handleDeletes)
+        .subscribe()
 
-      // Store the channel in ref
       channelRef.current = channel
 
-      // --- Cleanup Function ---
       return () => {
-        console.log("Conversations: Cleaning up Realtime subscription...");
         if (channelRef.current) {
           companySupabase.removeChannel(channelRef.current)
-            .then(() => console.log("Realtime channel removed successfully."))
-            .catch(err => console.error("Error removing realtime channel:", err));
           channelRef.current = null;
         }
       }
     } else {
-      // Handle case where companySupabase becomes null (e.g., settings change)
-      console.log("Conversations Effect: companySupabase is null, skipping fetch and subscription setup.");
-      setIsLoading(false); // Ensure loading state is false
-      setConversations([]); // Clear conversations
+      setIsLoading(false);
+      setConversations([]);
       setSelectedConversation(null);
-       // Ensure cleanup if channel existed before
        if (channelRef.current) {
-         const client = channelRef.current.supabaseClient as SupabaseClient | undefined; // Get client before nulling ref
-         if (client) {
-            client.removeChannel(channelRef.current)
-             .then(() => console.log("Realtime channel removed due to client change."))
-             .catch(err => console.error("Error removing realtime channel on client change:", err));
-         }
+         companySupabase?.removeChannel(channelRef.current);
          channelRef.current = null;
        }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companySupabase]) // Rerun effect if companySupabase changes
+  }, [companySupabase])
 
   const filteredConversations = conversations.filter((conv) =>
     conv.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
   
   // --- FUNCTIONAL ACTION HANDLERS ---
+  const handleMarkAsRead = async (conversationId: string) => {
+      if (!companySupabase) return toast({ title: "Error", description: "Database not connected.", variant: "destructive" });
+      
+      const { error } = await companySupabase
+          .from("conversation_history")
+          .update({ status: 'read' })
+          .eq("conversation_id", conversationId);
+          
+      if (error) {
+          console.error("Mark as Read Error:", error);
+          return toast({ title: "Update Failed", description: `Could not mark as read: ${error.message}`, variant: "destructive" });
+      }
 
-  // NOTE: Assuming the primary goal of these actions is to manage the UI/dashboard view.
-  // For production, the database calls would be implemented inside these functions.
-  const handleMarkAsRead = (id: string) => {
-      // *In a real app, this would update an 'is_read' column in Supabase*
-      console.log(`ACTION: Marking conversation ${id} as read... (DB call skipped)`);
-      toast({ title: "Success", description: "Conversation marked as read (view updated by next refresh)." });
+      toast({ title: "Success", description: "Conversation status updated to 'read'." });
   }
 
   const handleLinkToLead = (id: string) => {
-      // Simplest implementation: Redirect to Leads page with a search query
-      router.push(`/dashboard/leads?search=${id.substring(0, 8)}`);
-      toast({ title: "Redirecting", description: "Searching for lead by conversation ID..." });
+      router.push(`/dashboard/leads?search=${id.substring(0, 8)}`); 
+      toast({ title: "Redirecting", description: "Searching for lead by conversation ID..." }); 
   }
   
-  const handleArchive = (id: string) => {
-      // *In a real app, this would update an 'is_archived' column in Supabase*
-      console.log(`ACTION: Archiving conversation ${id}... (DB call skipped)`);
-      setConversations(convs => convs.filter(c => c.conversation_id !== id));
-      setSelectedConversation(currentSelected => (currentSelected?.conversation_id === id ? null : currentSelected));
-      toast({ title: "Archived", description: "Conversation removed from active list (placeholder)." });
+  const handleArchive = async (conversationId: string) => {
+      if (!companySupabase) return toast({ title: "Error", description: "Database not connected.", variant: "destructive" });
+
+      // 1. Update status in database
+      const { error } = await companySupabase
+          .from("conversation_history")
+          .update({ status: 'archived' })
+          .eq("conversation_id", conversationId);
+          
+      if (error) {
+          console.error("Archive Error:", error);
+          return toast({ title: "Update Failed", description: `Could not archive conversation: ${error.message}`, variant: "destructive" });
+      }
+
+      // 2. Local state update handled by the Realtime listener (handleUpdates) + optimistically set selection to null
+      setSelectedConversation(currentSelected => (currentSelected?.conversation_id === conversationId ? null : currentSelected));
+      
+      toast({ title: "Archived", description: "Conversation moved to archive." });
   }
 
-  const handleDelete = (id: string) => {
-      // *In a real app, this would DELETE the row from Supabase*
-      console.log(`ACTION: Deleting conversation ${id}... (DB call skipped)`);
-      setConversations(convs => convs.filter(c => c.conversation_id !== id));
-      setSelectedConversation(currentSelected => (currentSelected?.conversation_id === id ? null : currentSelected));
-      toast({ title: "Deleted", description: "Conversation permanently removed (placeholder)." });
+  const handleDelete = async (conversationId: string) => {
+      if (!companySupabase) return toast({ title: "Error", description: "Database not connected.", variant: "destructive" });
+
+      // 1. Delete from database
+      const { error } = await companySupabase
+          .from("conversation_history")
+          .delete()
+          .eq("conversation_id", conversationId);
+          
+      if (error) {
+          console.error("Delete Error:", error);
+          return toast({ title: "Delete Failed", description: `Could not delete conversation: ${error.message}`, variant: "destructive" });
+      }
+
+      // 2. Local state update handled by the Realtime listener (handleDeletes)
+      // Optimistically clear selection for best UX
+      setSelectedConversation(currentSelected => (currentSelected?.conversation_id === conversationId ? null : currentSelected));
+      
+      toast({ title: "Deleted", description: "Conversation permanently deleted." });
   }
 
 
@@ -277,11 +306,16 @@ export default function ConversationsPage() {
           <CardContent className="p-0 flex-1 overflow-hidden">
             <ScrollArea className="h-full">
               {isLoading && conversations.length === 0 ? (
-                <div className="flex items-center justify-center h-full min-h-[200px]">
-                  <p className="text-base text-[#EDE7C7]/60">Loading conversations...</p>
+                // Use Skeletons when initial load is happening and no data exists
+                <div className="space-y-1 px-4 py-4">
+                    <ConversationItemSkeleton />
+                    <ConversationItemSkeleton />
+                    <ConversationItemSkeleton />
+                    <ConversationItemSkeleton />
+                    <ConversationItemSkeleton />
                 </div>
               ) : conversations.length === 0 ? (
-                // Improved Empty State for Chat List
+                // Empty State
                 <div className="flex items-center justify-center h-full min-h-[200px]">
                   <div className="text-center px-6 py-8">
                     <Inbox className="h-16 w-16 text-[#EDE7C7]/20 mx-auto mb-4" />
@@ -322,7 +356,7 @@ export default function ConversationsPage() {
                 <CardContent className="flex-1 p-6 overflow-hidden"><ScrollArea className="h-full pr-4"><div className="space-y-4">{selectedConversation.history?.map((message, index) => ( <div key={index} className={`flex ${message.type === "human" ? "justify-start" : "justify-end"}`}><div className={`max-w-[75%] rounded-lg px-4 py-3 ${message.type === "human" ? "bg-[#2A2A2A] text-[#EDE7C7]" : "bg-[#EDE7C7] text-[#0A0A0A]"}`}><p className="text-sm leading-relaxed whitespace-pre-wrap">{message.data.content}</p></div></div> ))}</div></ScrollArea></CardContent>
              </>
            ) : (
-             // Improved Empty State for Message Panel
+             // Empty State for Message Panel
              <div className="flex items-center justify-center h-full">
                <div className="text-center px-6 py-8">
                   {isLoading && conversations.length === 0 ? (

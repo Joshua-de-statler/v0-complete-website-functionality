@@ -14,14 +14,22 @@ import {
   RefreshCw
 } from "lucide-react"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
-import { useEffect, useState, useMemo, useRef } from "react" // Added useRef
-import type { RealtimeChannel } from "@supabase/supabase-js" // Added RealtimeChannel type
+import { useEffect, useState, useMemo, useRef } from "react"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Area } from "recharts"
 import { differenceInDays, format, eachDayOfInterval, startOfDay, parseISO, subDays } from "date-fns"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { RecentLeads } from "@/components/dashboard/recent-leads"
+import type { Metadata } from "next" // Import Metadata
+
+// --- METADATA ---
+export const metadata: Metadata = {
+  title: "Overview | Zappies AI Dashboard",
+  description: "A comprehensive summary of your AI agent's performance, metrics, and recent activity.",
+}
+// --- END METADATA ---
 
 
 // Interface for daily chart data
@@ -105,7 +113,7 @@ export default function DashboardPage() {
   const [chartDaysCount, setChartDaysCount] = useState<number>(0)
   const [allMeetings, setAllMeetings] = useState<MeetingSimple[]>([])
   const [recentLeads, setRecentLeads] = useState<Lead[]>([])
-  const channelRef = useRef<RealtimeChannel | null>(null) // Ref for Realtime channel
+  const channelRef = useRef<RealtimeChannel | null>(null)
 
 
   // Calculate trends using useMemo based on allMeetings
@@ -174,7 +182,7 @@ export default function DashboardPage() {
             const meetingsPromise = companySupabase
                 .from("meetings")
                 .select("created_at, status")
-                .order("created_at", { ascending: true }); // Need all meeting data for chart/trends
+                .order("created_at", { ascending: true });
 
             const [conversationResult, meetingsResult, leadsResult] = await Promise.all([convPromise, meetingsPromise, leadsPromise]);
 
@@ -361,7 +369,7 @@ const SidebarCardSkeleton = () => (
         <CardContent className="space-y-4">
             {[...Array(3)].map((_, i) => ( 
                 <div key={i} className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-[#2A2A2A] rounded-full animate-pulse flex-shrink-0"></div>
+                    <div className="h-10 w-10 bg-[#2A2A2A] rounded-full flex-shrink-0"></div>
                     <div className="flex-1 space-y-2">
                         <div className="h-4 w-3/4 bg-[#2A2A2A] rounded animate-pulse"></div>
                         <div className="h-3 w-1/4 bg-[#2A2A2A] rounded animate-pulse"></div>
