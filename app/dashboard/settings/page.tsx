@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { ProfileSettings } from "@/components/dashboard/profile-settings"
 import { getCompany } from "@/lib/supabase/company-client"
-import type { Metadata } from "next" // Import Metadata
+import type { Metadata } from "next"
 
 // --- METADATA ---
 export const metadata: Metadata = {
