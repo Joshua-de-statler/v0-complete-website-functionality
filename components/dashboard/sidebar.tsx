@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, MessageSquare, Phone, Users, BarChart3, Settings } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Phone, Users, BarChart3, Settings, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 const navigation = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -24,8 +25,9 @@ export function DashboardSidebar({ mobileMenuOpen, onClose }: DashboardSidebarPr
 
   return (
     <>
-      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r lg:border-[#2A2A2A] bg-[#0F0F0F]">
-        <div className="flex h-16 items-center px-6 border-b border-[#2A2A2A]">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r lg:border-[#2A2A2A] bg-[#0F0F0F] flex-shrink-0">
+        <div className="flex h-14 sm:h-16 items-center px-6 border-b border-[#2A2A2A]">
           <Link href="/" className="text-xl font-bold text-[#EDE7C7] hover:text-[#EDE7C7]/80 transition-colors">
             AI Agents
           </Link>
@@ -52,13 +54,14 @@ export function DashboardSidebar({ mobileMenuOpen, onClose }: DashboardSidebarPr
         </nav>
       </div>
 
+      {/* Mobile Sidebar */}
       <div
         className={cn(
           "lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-[#0F0F0F] border-r border-[#2A2A2A] transform transition-transform duration-300 ease-in-out",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center px-6 border-b border-[#2A2A2A]">
+        <div className="flex h-14 sm:h-16 items-center justify-between px-6 border-b border-[#2A2A2A]">
           <Link
             href="/"
             className="text-xl font-bold text-[#EDE7C7] hover:text-[#EDE7C7]/80 transition-colors"
@@ -66,8 +69,16 @@ export function DashboardSidebar({ mobileMenuOpen, onClose }: DashboardSidebarPr
           >
             AI Agents
           </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="hover:bg-[#2A2A2A] transition-colors duration-200"
+          >
+            <X className="h-5 w-5 text-[#EDE7C7]" />
+          </Button>
         </div>
-        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto h-[calc(100vh-4rem)]">
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)]">
           {navigation.map((item) => {
             const isActive = pathname === item.href
             return (
