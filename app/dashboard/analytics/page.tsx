@@ -203,8 +203,11 @@ export default function AnalyticsPage() {
               <CardContent className="pt-4">
                 <ResponsiveContainer width="100%" height={250}>
                   {meetingStatusData.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-sm text-[#EDE7C7]/60">
-                      No meeting data available.
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center px-4">
+                        <PieChartIcon className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                        <p className="text-sm text-[#EDE7C7]/60">No meeting data available.</p>
+                      </div>
                     </div>
                   ) : (
                     <PieChart>
@@ -278,8 +281,11 @@ export default function AnalyticsPage() {
               <CardContent className="pt-4 pl-0 sm:pl-2">
                 <ResponsiveContainer width="100%" height={250}>
                   {hourlyActivityData.reduce((sum, d) => sum + d.meetings, 0) === 0 ? (
-                    <div className="flex items-center justify-center h-full text-sm text-[#EDE7C7]/60">
-                      No meeting data available for hourly breakdown.
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center px-4">
+                        <BarChartHorizontal className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                        <p className="text-sm text-[#EDE7C7]/60">No meeting data available for hourly breakdown.</p>
+                      </div>
                     </div>
                   ) : (
                     <BarChart data={hourlyActivityData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>

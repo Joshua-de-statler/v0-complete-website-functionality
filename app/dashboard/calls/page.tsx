@@ -197,11 +197,23 @@ export default function CallsPage() {
           <CardContent className="p-0 flex-1">
             <ScrollArea className="h-full">
               {isLoading ? (
-                <div className="text-center py-12 text-[#EDE7C7]/60">Loading calls...</div>
+                <div className="flex items-center justify-center h-full min-h-[200px]">
+                  <p className="text-base text-[#EDE7C7]/60">Loading calls...</p>
+                </div>
               ) : callHistory.length === 0 ? (
-                <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No call history found.</p>
+                <div className="flex items-center justify-center h-full min-h-[200px]">
+                  <div className="text-center px-4">
+                    <Phone className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                    <p className="text-base text-[#EDE7C7]/60">No call history found.</p>
+                  </div>
+                </div>
               ) : filteredCalls.length === 0 ? (
-                <p className="text-[#EDE7C7]/60 text-sm text-center py-8">No calls match your current filters.</p>
+                <div className="flex items-center justify-center h-full min-h-[200px]">
+                  <div className="text-center px-4">
+                    <Search className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                    <p className="text-base text-[#EDE7C7]/60">No calls match your current filters.</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-3 p-6 pt-0">
                   {filteredCalls.map((call) => (
@@ -364,10 +376,11 @@ export default function CallsPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12">
-                {" "}
-                <Phone className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />{" "}
-                <p className="text-sm text-[#EDE7C7]/60">Select a call to view details</p>{" "}
+              <div className="flex items-center justify-center h-full min-h-[200px]">
+                <div className="text-center px-4">
+                  <Phone className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                  <p className="text-base text-[#EDE7C7]/60">Select a call to view details</p>
+                </div>
               </div>
             )}
           </CardContent>

@@ -153,9 +153,16 @@ export default function ConversationsPage() {
           <CardContent className="p-0 flex-1 overflow-hidden">
             <ScrollArea className="h-full">
               {isLoading ? (
-                <div className="text-center py-16 text-base text-[#EDE7C7]/60">Loading...</div>
+                <div className="flex items-center justify-center h-full min-h-[200px]">
+                  <p className="text-base text-[#EDE7C7]/60">Loading...</p>
+                </div>
               ) : filteredConversations.length === 0 ? (
-                <div className="text-center py-16 text-base text-[#EDE7C7]/60">No conversations found.</div>
+                <div className="flex items-center justify-center h-full min-h-[200px]">
+                  <div className="text-center px-4">
+                    <MessageSquare className="h-12 w-12 text-[#EDE7C7]/20 mx-auto mb-3" />
+                    <p className="text-base text-[#EDE7C7]/60">No conversations found.</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-1 px-4 pb-4">
                   {filteredConversations.map((conv) => (
@@ -248,7 +255,7 @@ export default function ConversationsPage() {
             </>
           ) : (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center">
+              <div className="text-center px-4">
                 <MessageSquare className="h-16 w-16 text-[#EDE7C7]/20 mx-auto mb-4" />
                 <p className="text-base text-[#EDE7C7]/60">
                   {isLoading ? "Loading..." : "Select a conversation to view messages."}
