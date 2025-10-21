@@ -8,6 +8,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 // Import Recharts components for Line Chart
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Area, defs, linearGradient } from "recharts"
+import { RecentActivity } from "@/components/dashboard/recent-activity";
 
 // Interface for daily chart data
 interface DailyMeetingData {
