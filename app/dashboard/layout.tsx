@@ -25,7 +25,7 @@ function DashboardLayoutClient({ children, user }: { children: React.ReactNode; 
 }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
+  const supabase = createClient() // Removed await from createClient() since it's now synchronous
   const {
     data: { user },
   } = await supabase.auth.getUser()
