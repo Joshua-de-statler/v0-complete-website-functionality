@@ -243,7 +243,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <RecentActivity />
+      {/* Conditionally render RecentActivity only when NOT loading */}
+      {!isLoading && <RecentActivity />}
 
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
