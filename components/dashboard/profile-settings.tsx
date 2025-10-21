@@ -6,24 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useCompany } from "@/components/dashboard/company-provider"
-import { AlertCircle, CheckCircle, User, Save } from "lucide-react" // Added User, Save icons
 
 interface ProfileSettingsProps {
-  // User object now includes id from Supabase auth
   user: {
     id: string
     email?: string
   }
-  // Profile object from the 'profiles' table
   profile: {
-    id: string // Should match user.id
     full_name: string | null
-    // Removed company field as it's not directly stored here
+    company: string | null
   } | null
 }
 
@@ -31,192 +26,97 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
   const companyInfo = useCompany()
   const router = useRouter()
   const { toast } = useToast()
-
-  // User Profile State
-  const [fullName, setFullName] = useState("")
-
-  // Company Settings State
+  
   const [companyName, setCompanyName] = useState("")
   const [supabaseUrl, setSupabaseUrl] = useState("")
   const [supabaseAnonKey, setSupabaseAnonKey] = useState("")
-
-  // UI State
+  
   const [isUpdating, setIsUpdating] = useState(false)
-  const [isValidating, setIsValidating] = useState(false)
-  const [validationStatus, setValidationStatus] = useState<"idle" | "success" | "error">("idle")
-  const [validationMessage, setValidationMessage] = useState<string>("")
 
-  // Populate form fields on initial load or data change
+  // This useEffect ensures the form state is populated when companyInfo becomes available
   useEffect(() => {
-    // Populate User Profile fields
-    if (profile) {
-      setFullName(profile.full_name || "")
-    }
-    // Populate Company fields
     if (companyInfo) {
-      setCompanyName(companyInfo.name || "")
-      setSupabaseUrl(companyInfo.supabase_url || "")
-      setSupabaseAnonKey(companyInfo.supabase_anon_key || "")
+      console.log("LOG: CompanyProvider data loaded:", companyInfo);
+      setCompanyName(companyInfo.name || "");
+      setSupabaseUrl(companyInfo.supabase_url || "");
+      setSupabaseAnonKey(companyInfo.supabase_anon_key || "");
+    } else {
+      console.log("LOG: CompanyProvider data is currently null.");
     }
-    setValidationStatus("idle") // Reset validation status
-  }, [profile, companyInfo])
+  }, [companyInfo]);
 
-  // --- handleTestConnection remains the same ---
-  const handleTestConnection = async () => {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      setValidationStatus("error")
-      setValidationMessage("Please enter both Supabase URL and Anon Key.")
-      return
-    }
-    setIsValidating(true)
-    setValidationStatus("idle")
-    setValidationMessage("")
-
-    try {
-      const testClient = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
-         auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-            detectSessionInUrl: false
-        }
-      })
-      const { data, error } = await testClient.rpc('get_schema_and_tables')
-
-      if (error) {
-        console.error("Connection Test Error (Supabase):", error);
-        throw new Error(error.message || "Failed to connect. Check URL/Key and network permissions.");
-      }
-
-      console.log("Connection Test Success:", data)
-      setValidationStatus("success")
-      setValidationMessage("Connection successful!")
-
-    } catch (error: any) {
-      console.error("Connection Test Error (Catch):", error)
-      setValidationStatus("error")
-      setValidationMessage(`Connection failed: ${error.message || "Unknown error."}`)
-    } finally {
-      setIsValidating(false)
-    }
-  }
-
-
-  // Updated handleUpdate to save both profile and company info
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsUpdating(true)
-    setValidationStatus("idle")
+    
+    console.log("--- SAVE BUTTON CLICKED ---");
+    
+    // --- LOG 1: Check the data from the provider ---
+    console.log("LOG 1: Data from useCompany() hook:", companyInfo);
 
-    if (!user || !user.id) {
-      toast({ title: "Error", description: "User information missing.", variant: "destructive" })
-      setIsUpdating(false)
-      return
-    }
     if (!companyInfo || !companyInfo.id) {
-      toast({ title: "Error", description: "Company information missing.", variant: "destructive" })
+      console.error("ERROR at LOG 1: Company Info or ID is missing. Aborting update.");
+      toast({
+        title: "Frontend Error",
+        description: "Could not find company information. Please refresh and try again.",
+        variant: "destructive",
+      })
       setIsUpdating(false)
-      return
+      return;
     }
 
     const supabase = createClient()
-    let updateSuccessful = true // Flag to track success
+    console.log("LOG 2: Main Supabase client created.");
 
     try {
-      // --- Update User Profile ---
-      const profileUpdates = {
-        full_name: fullName,
-        updated_at: new Date().toISOString(),
-      }
-      console.log("LOG: Updating 'profiles' table with data:", profileUpdates);
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update(profileUpdates)
-        .eq("id", user.id) // Match the logged-in user's ID
-
-      if (profileError) {
-        console.error("Profile Update Error:", profileError);
-        toast({ title: "Profile Update Failed", description: profileError.message, variant: "destructive" });
-        updateSuccessful = false; // Mark failure
-        // Decide whether to stop here or continue with company update
-        // For now, we'll stop if the profile update fails.
-        throw profileError;
-      }
-       console.log("LOG: Profile update successful.");
-
-      // --- Update Company Settings (only if profile update was successful) ---
-      const companyUpdates = {
+      const updates = {
         name: companyName,
         supabase_url: supabaseUrl,
         supabase_anon_key: supabaseAnonKey,
         updated_at: new Date().toISOString(),
-      }
-      console.log("LOG: Updating 'companies' table with data:", companyUpdates);
-      const { error: companyError } = await supabase
+      };
+      // --- LOG 3: Log the exact data being sent to the database ---
+      console.log("LOG 3: Sending update to 'companies' table with data:", updates);
+      console.log(`Query: .eq("id", "${companyInfo.id}")`);
+
+      const { data, error } = await supabase
         .from("companies")
-        .update(companyUpdates)
+        .update(updates)
         .eq("id", companyInfo.id)
-
-      if (companyError) {
-         console.error("Company Update Error:", companyError);
-         toast({ title: "Company Settings Update Failed", description: companyError.message, variant: "destructive" });
-         updateSuccessful = false; // Mark failure
-         throw companyError;
+        .select() // IMPORTANT: Add .select() to get back data or a more detailed error
+        
+      if (error) {
+        // This will now throw the specific error from Supabase if one occurs
+        throw error
       }
-      console.log("LOG: Company settings update successful.");
 
+      console.log("LOG 4: Supabase update successful. Response data:", data);
 
-      // If both updates were successful
       toast({
         title: "Success!",
         description: "Your settings have been updated successfully.",
       })
-      router.refresh() // Refresh to reflect changes
+      router.refresh()
 
-    } catch (error: any) {
-      // Error already toasted inside try block if specific update failed
-      console.error("--- CATCH BLOCK: An error occurred during settings update ---", error);
-      // General error toast if something else went wrong
-       if (updateSuccessful) { // Avoid double-toasting if specific update failed
-            toast({
-                title: "Update Failed",
-                description: "An unexpected error occurred during the update.",
-                variant: "destructive",
-            });
-       }
+    } catch (error) {
+      // --- LOG 5: This is the most important log. It will show the exact backend error ---
+      console.error("--- CATCH BLOCK: An error occurred during the update ---", error);
+      
+      const err = error as any; 
+      
+      toast({
+        title: "Update Failed",
+        description: err.message || `Error code: ${err.code}` || "An unknown database error occurred. Check the console for details.",
+        variant: "destructive",
+      })
     } finally {
       setIsUpdating(false)
-      console.log("--- UPDATE SETTINGS PROCESS FINISHED ---");
+      console.log("--- UPDATE PROCESS FINISHED ---");
     }
   }
 
-  // Reset validation status if URL or Key changes
-  useEffect(() => {
-    setValidationStatus("idle")
-    setValidationMessage("")
-  }, [supabaseUrl, supabaseAnonKey])
-
   return (
     <form onSubmit={handleUpdate} className="grid gap-6">
-      {/* User Profile Card */}
-       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardHeader>
-          <CardTitle className="text-[#EDE7C7] flex items-center gap-2"><User className="h-5 w-5"/> Your Profile</CardTitle>
-          <CardDescription className="text-[#EDE7C7]/60">Manage your personal information.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-           <div className="space-y-2">
-            <Label htmlFor="emailDisplay" className="text-[#EDE7C7]/80">Email</Label>
-            {/* Display email as read-only */}
-            <Input id="emailDisplay" type="email" value={user.email || ''} readOnly disabled className="bg-[#0A0A0A]/50 border-[#2A2A2A] text-[#EDE7C7]/70 cursor-not-allowed" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="fullName" className="text-[#EDE7C7]/80">Full Name</Label>
-            <Input id="fullName" type="text" value={fullName || ''} onChange={(e) => setFullName(e.target.value)} placeholder="Your Full Name" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Company & Database Card */}
       <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
         <CardHeader>
           <CardTitle className="text-[#EDE7C7]">Company & Database Settings</CardTitle>
@@ -228,38 +128,19 @@ export function ProfileSettings({ user, profile }: ProfileSettingsProps) {
             <Input id="companyName" type="text" value={companyName || ''} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your Company Name" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="supabaseUrl" className="text-[#EDE7C7]/80">Supabase URL</Label>
+            <Label htmlFor="supabaseUrl" className="text-[#EDE7C7]/80">Supabase URL(,)(,)</Label>
             <Input id="supabaseUrl" type="url" value={supabaseUrl || ''} onChange={(e) => setSupabaseUrl(e.target.value)} placeholder="https://<your-project-ref>.supabase.co" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="supabaseAnonKey" className="text-[#EDE7C7]/80">Supabase Anon Key</Label>
             <Input id="supabaseAnonKey" type="text" value={supabaseAnonKey || ''} onChange={(e) => setSupabaseAnonKey(e.target.value)} placeholder="Enter your Supabase anon (public) key" className="bg-[#0A0A0A] border-[#2A2A2A] text-[#EDE7C7]" />
           </div>
-          {/* Validation Feedback */}
-          {validationStatus !== "idle" && (
-            <div className={`flex items-center gap-2 text-sm mt-2 ${validationStatus === 'success' ? 'text-green-500' : 'text-red-500'}`}>
-              {validationStatus === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              <span>{validationMessage}</span>
-            </div>
-          )}
-          {/* Test Connection Button */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleTestConnection}
-            disabled={isValidating || !supabaseUrl || !supabaseAnonKey}
-            className="mt-2 text-[#EDE7C7]/80 border-[#2A2A2A] hover:bg-[#2A2A2A]/50 hover:text-[#EDE7C7]"
-          >
-            {isValidating ? "Testing..." : "Test Connection"}
-          </Button>
         </CardContent>
       </Card>
-
-      {/* Save Button */}
+      
       <div className="flex justify-end">
-        <Button type="submit" disabled={isUpdating || isValidating} className="bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
-          {isUpdating ? "Saving..." : <><Save className="h-4 w-4 mr-2"/> Save All Settings</>}
+        <Button type="submit" disabled={isUpdating} className="bg-[#EDE7C7] text-[#0A0A0A] hover:bg-[#EDE7C7]/90">
+          {isUpdating ? "Saving..." : "Save Settings"}
         </Button>
       </div>
     </form>
