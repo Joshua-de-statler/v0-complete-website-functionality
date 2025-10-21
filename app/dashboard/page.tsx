@@ -246,110 +246,75 @@ export default function DashboardPage() {
       {/* Conditionally render RecentActivity only when NOT loading */}
       {!isLoading && <RecentActivity />}
 
-      <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
-        <CardHeader>
-          <CardTitle className="text-[#EDE7C7] flex items-center gap-2 text-lg sm:text-xl">
-            <LineChartIcon className="h-5 w-5 flex-shrink-0" />
-            <span className="truncate">Daily Meetings Overview (Last 30 Days)</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pl-0 sm:pl-2">
-          {isLoading ? (
-            <div className="h-[250px] sm:h-[300px] w-full bg-[#2A2A2A] rounded-md animate-pulse flex items-center justify-center text-[#EDE7C7]/60">
-              Loading chart data...
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              {chartData.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-[#EDE7C7]/60 text-sm">
-                  No meeting data available for the last 30 days.
-                </div>
+      {isClient && (
+        <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
+            <CardHeader>
+              <CardTitle className="text-[#EDE7C7] flex items-center gap-2">
+                <LineChartIcon className="h-5 w-5" />
+                Daily Meetings Overview (Last 30 Days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+              {/* Show loading skeleton based on main isLoading */}
+              {isLoading ? (
+                 <div className="h-[300px] w-full bg-[#2A2A2A] rounded-md animate-pulse flex items-center justify-center text-[#EDE7C7]/60">Loading chart data...</div>
               ) : (
-                <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
-                  <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8884d8" stopOpacity={0.6} />
-                      <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorConfirmed" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.6} />
-                      <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#2A2A2A" strokeDasharray="5 5" vertical={false} />{" "}
-                  {/* Dashed horizontal lines only */}
-                  <XAxis
-                    dataKey="day"
-                    stroke="#EDE7C7"
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    interval={"preserveStartEnd"} // Ensure start/end labels show
-                    tick={{ fill: "#EDE7C7" }}
-                  />
-                  <YAxis
-                    stroke="#EDE7C7"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    allowDecimals={false} // Only show whole numbers
-                    tick={{ fill: "#EDE7C7" }}
-                    width={30} // Give Y-axis labels space
-                  />
-                  <Tooltip
-                    cursor={{ stroke: "#8B0000", strokeWidth: 1.5, strokeDasharray: "3 3" }}
-                    contentStyle={{
-                      backgroundColor: "rgba(26, 26, 26, 0.9)",
-                      border: "1px solid #2A2A2A",
-                      color: "#EDE7C7",
-                      borderRadius: "0.5rem",
-                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                    }}
-                    labelFormatter={(label, payload) => {
-                      const dataPoint = payload?.[0]?.payload as DailyMeetingData | undefined
-                      return dataPoint
-                        ? new Date(dataPoint.fullDate + "T00:00:00").toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })
-                        : label
-                    }}
-                    itemStyle={{ color: "#EDE7C7" }}
-                  />
-                  <Legend wrapperStyle={{ color: "#EDE7C7", fontSize: "12px", paddingTop: "10px" }} />
-                  <Area type="monotone" dataKey="total" stroke="none" fillOpacity={0.2} fill="url(#colorTotal)" />
-                  <Area
-                    type="monotone"
-                    dataKey="confirmed"
-                    stroke="none"
-                    fillOpacity={0.2}
-                    fill="url(#colorConfirmed)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="total"
-                    name="Total Booked"
-                    stroke="#a7a2ff"
-                    dot={false}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                    strokeWidth={2}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="confirmed"
-                    name="Confirmed"
-                    stroke="#82ca9d"
-                    dot={false}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                    strokeWidth={2}
-                  />
-                </LineChart>
+                <ResponsiveContainer width="100%" height={300}>
+                    {chartData.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-[#EDE7C7]/60">No meeting data available for the last 30 days.</div>
+                    ) : (
+                        <LineChart data={chartData} margin={{ top: 5, right: 30, bottom: 5, left: 0 }}>
+                           {/* ... (rest of chart definition) ... */}
+                            <defs>
+                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#8884d8" stopOpacity={0.6}/>
+                                <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                                </linearGradient>
+                                <linearGradient id="colorConfirmed" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.6}/>
+                                <stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid stroke="#2A2A2A" strokeDasharray="5 5" vertical={false}/>
+                            <XAxis
+                                dataKey="day"
+                                stroke="#EDE7C7"
+                                fontSize={10}
+                                tickLine={false}
+                                axisLine={false}
+                                interval={'preserveStartEnd'}
+                                tick={{ fill: '#EDE7C7' }}
+                            />
+                            <YAxis
+                                stroke="#EDE7C7"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                allowDecimals={false}
+                                tick={{ fill: '#EDE7C7' }}
+                                width={30}
+                            />
+                            <Tooltip
+                                cursor={{ stroke: '#8B0000', strokeWidth: 1.5, strokeDasharray: '3 3' }}
+                                contentStyle={{ backgroundColor: 'rgba(26, 26, 26, 0.9)', border: '1px solid #2A2A2A', color: '#EDE7C7', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                                labelFormatter={(label, payload) => {
+                                    const dataPoint = payload?.[0]?.payload as DailyMeetingData | undefined;
+                                    return dataPoint ? new Date(dataPoint.fullDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric'}) : label;
+                                }}
+                                itemStyle={{ color: '#EDE7C7' }}
+                            />
+                            <Legend wrapperStyle={{ color: '#EDE7C7', fontSize: '12px', paddingTop: '10px' }}/>
+                            <Area type="monotone" dataKey="total" stroke="none" fillOpacity={0.2} fill="url(#colorTotal)" />
+                            <Area type="monotone" dataKey="confirmed" stroke="none" fillOpacity={0.2} fill="url(#colorConfirmed)" />
+                            <Line type="monotone" dataKey="total" name="Total Booked" stroke="#a7a2ff" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} strokeWidth={2}/>
+                            <Line type="monotone" dataKey="confirmed" name="Confirmed" stroke="#82ca9d" dot={false} activeDot={{ r: 5, strokeWidth: 0 }} strokeWidth={2}/>
+                        </LineChart>
+                    )}
+                </ResponsiveContainer>
               )}
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+      )}
     </div>
   )
 }
