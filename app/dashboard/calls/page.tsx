@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Search, Phone, Play, Pause, Download, Clock, PhoneIncoming, PhoneOutgoing } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
 
 const callLogs = [
   {
@@ -93,10 +92,10 @@ export default function CallsPage() {
   })
 
   return (
-    <div className="space-y-4 sm:space-y-6 h-full flex flex-col">
+    <div className="space-y-6 h-full flex flex-col">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-[#EDE7C7]">Voice Calls</h2>
-        <p className="text-sm sm:text-base text-[#EDE7C7]/60 mt-2">Manage and review your voice call logs</p>
+        <h2 className="text-3xl font-bold text-[#EDE7C7]">Voice Calls</h2>
+        <p className="text-[#EDE7C7]/60 mt-2">Manage and review your voice call logs</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -127,56 +126,54 @@ export default function CallsPage() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         {/* Call Logs List */}
         <Card className="bg-[#1A1A1A] border-[#2A2A2A] lg:col-span-2 flex flex-col overflow-hidden">
           <CardHeader className="flex-shrink-0">
             <CardTitle className="text-[#EDE7C7]">Call History</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <CardContent className="flex-1 overflow-y-auto">
             <div className="space-y-3">
               {filteredCalls.map((call) => (
                 <button
                   key={call.id}
                   onClick={() => setSelectedCall(call)}
-                  className={cn(
-                    "w-full p-4 rounded-lg border transition-colors text-left",
+                  className={`w-full p-4 rounded-lg border transition-colors ${
                     selectedCall?.id === call.id
                       ? "border-[#EDE7C7]/30 bg-[#2A2A2A]/50"
-                      : "border-[#2A2A2A] hover:border-[#EDE7C7]/20 hover:bg-[#2A2A2A]/30",
-                  )}
+                      : "border-[#2A2A2A] hover:border-[#EDE7C7]/20 hover:bg-[#2A2A2A]/30"
+                  }`}
                 >
                   <div className="flex items-start gap-4">
-                    <Avatar className="h-12 w-12 flex-shrink-0">
+                    <Avatar className="h-12 w-12">
                       <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7]">{call.avatar}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1 gap-2">
-                        <p className="font-medium text-[#EDE7C7] truncate">{call.customer}</p>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-medium text-[#EDE7C7]">{call.customer}</p>
                         <Badge
                           variant="outline"
-                          className={cn(
-                            "flex-shrink-0",
+                          className={
                             call.status === "completed"
                               ? "border-green-500/50 text-green-500"
-                              : "border-red-500/50 text-red-500",
-                          )}
+                              : "border-red-500/50 text-red-500"
+                          }
                         >
                           {call.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-[#EDE7C7]/60 mb-2 truncate">{call.phone}</p>
-                      <div className="flex items-center gap-4 text-xs text-[#EDE7C7]/40 flex-wrap">
+                      <p className="text-sm text-[#EDE7C7]/60 mb-2">{call.phone}</p>
+                      <div className="flex items-center gap-4 text-xs text-[#EDE7C7]/40">
                         <div className="flex items-center gap-1">
                           {call.type === "incoming" ? (
-                            <PhoneIncoming className="h-3 w-3 flex-shrink-0" />
+                            <PhoneIncoming className="h-3 w-3" />
                           ) : (
-                            <PhoneOutgoing className="h-3 w-3 flex-shrink-0" />
+                            <PhoneOutgoing className="h-3 w-3" />
                           )}
                           <span>{call.type}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <Clock className="h-3 w-3" />
                           <span>{call.duration}</span>
                         </div>
                         <span>{call.time}</span>
@@ -194,43 +191,43 @@ export default function CallsPage() {
           <CardHeader className="flex-shrink-0">
             <CardTitle className="text-[#EDE7C7]">Call Details</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <CardContent className="flex-1 overflow-y-auto">
             {selectedCall ? (
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-16 w-16 flex-shrink-0">
+                  <Avatar className="h-16 w-16">
                     <AvatarFallback className="bg-[#EDE7C7]/10 text-[#EDE7C7] text-lg">
                       {selectedCall.avatar}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="min-w-0">
-                    <p className="font-medium text-[#EDE7C7] truncate">{selectedCall.customer}</p>
-                    <p className="text-sm text-[#EDE7C7]/60 truncate">{selectedCall.phone}</p>
+                  <div>
+                    <p className="font-medium text-[#EDE7C7]">{selectedCall.customer}</p>
+                    <p className="text-sm text-[#EDE7C7]/60">{selectedCall.phone}</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex justify-between text-sm gap-4">
+                  <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Date</span>
-                    <span className="text-[#EDE7C7] text-right">{selectedCall.date}</span>
+                    <span className="text-[#EDE7C7]">{selectedCall.date}</span>
                   </div>
-                  <div className="flex justify-between text-sm gap-4">
+                  <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Duration</span>
                     <span className="text-[#EDE7C7]">{selectedCall.duration}</span>
                   </div>
-                  <div className="flex justify-between text-sm gap-4">
+                  <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Type</span>
                     <span className="text-[#EDE7C7] capitalize">{selectedCall.type}</span>
                   </div>
-                  <div className="flex justify-between text-sm gap-4">
+                  <div className="flex justify-between text-sm">
                     <span className="text-[#EDE7C7]/60">Status</span>
                     <Badge
                       variant="outline"
-                      className={cn(
+                      className={
                         selectedCall.status === "completed"
                           ? "border-green-500/50 text-green-500"
-                          : "border-red-500/50 text-red-500",
-                      )}
+                          : "border-red-500/50 text-red-500"
+                      }
                     >
                       {selectedCall.status}
                     </Badge>
@@ -266,7 +263,7 @@ export default function CallsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-[#2A2A2A] text-[#EDE7C7] hover:bg-[#2A2A2A] bg-transparent flex-shrink-0"
+                          className="border-[#2A2A2A] text-[#EDE7C7] hover:bg-[#2A2A2A] bg-transparent"
                           onClick={() => console.log("[v0] Downloading recording")}
                         >
                           <Download className="h-4 w-4" />

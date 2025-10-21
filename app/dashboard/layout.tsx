@@ -1,4 +1,4 @@
-import React from "react"
+import type React from "react"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
@@ -6,26 +6,8 @@ import { DashboardHeader } from "@/components/dashboard/header"
 import { CompanyProvider } from "@/components/dashboard/company-provider"
 import { Toaster } from "@/components/ui/toaster"
 
-function DashboardLayoutClient({ children, user }: { children: React.ReactNode; user: any }) {
-  "use client"
-
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
-
-  return (
-    <div className="flex h-screen bg-[#0A0A0A] overflow-hidden">
-      <DashboardSidebar mobileMenuOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <DashboardHeader user={user} onMenuClick={() => setMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-[#0A0A0A] p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
-        </main>
-      </div>
-    </div>
-  )
-}
-
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createClient() // Removed await from createClient() since it's now synchronous
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -70,7 +52,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <CompanyProvider company={company}>
-      <DashboardLayoutClient user={user}>{children}</DashboardLayoutClient>
+      <div className="flex h-screen bg-[#0A0A0A] overflow-hidden">
+        <DashboardSidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <DashboardHeader user={user} />
+          <main className="flex-1 overflow-y-auto bg-[#0A0A0A] p-6 lg:p-8">{children}</main>
+        </div>
+      </div>
       <Toaster />
     </CompanyProvider>
   )
