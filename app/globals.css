@@ -190,3 +190,49 @@
 .optimize-animations {
   will-change: opacity, transform;
 }
+
+/* Added smooth scroll behavior and responsive utilities */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* Smooth transitions for all interactive elements */
+button,
+a,
+input,
+textarea,
+select {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Prevent layout shift on mobile */
+@media (max-width: 1023px) {
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* Ensure cards don't overflow on small screens */
+.card-responsive {
+  max-width: 100%;
+  overflow: hidden;
+}

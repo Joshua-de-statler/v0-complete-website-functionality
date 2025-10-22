@@ -2,20 +2,20 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, CalendarCheck, Clock, AlertTriangle } from "lucide-react" // Updated icons
+import { MessageSquare, CalendarCheck, Clock, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useCompanySupabase } from "@/lib/supabase/company-client"
 import { useToast } from "@/hooks/use-toast"
-import { formatDistanceToNow } from 'date-fns' // Import date-fns utility
+import { formatDistanceToNow } from 'date-fns'
 
 // Define a unified interface for activity items
 interface ActivityItem {
-  id: string; // Use conversation_id or meeting id
+  id: string;
   type: "conversation" | "meeting";
-  description: string; // e.g., "New conversation started" or "Meeting booked: [Name]"
-  timestamp: Date; // Use created_at
-  status?: string; // Optional status (e.g., meeting status)
+  description: string;
+  timestamp: Date;
+  status?: string;
 }
 
 export function RecentActivity() {
@@ -34,7 +34,7 @@ export function RecentActivity() {
        console.log("RecentActivity: Fetching data...");
       setIsLoading(true);
       try {
-        const fetchLimit = 5; // Fetch slightly more to ensure we get the latest across both
+        const fetchLimit = 5;
 
         // Fetch latest conversations
         const convPromise = companySupabase
@@ -43,10 +43,10 @@ export function RecentActivity() {
           .order("created_at", { ascending: false })
           .limit(fetchLimit);
 
-        // Fetch latest meetings
+        // --- CORRECTED QUERY: Fetch latest meetings using 'full_name' ---
         const meetingsPromise = companySupabase
           .from("meetings")
-          .select("id, customer_name, created_at, status")
+          .select("id, full_name, created_at, status") // Use 'full_name' instead of 'customer_name'
           .order("created_at", { ascending: false })
           .limit(fetchLimit);
 
@@ -63,18 +63,18 @@ export function RecentActivity() {
             status: conv.status
         }));
 
+        // --- CORRECTED PROCESSING: Use 'full_name' ---
         const meetingActivities: ActivityItem[] = (meetingsResult.data || []).map(meeting => ({
             id: meeting.id,
             type: "meeting",
-            description: `Meeting booked: ${meeting.customer_name || 'Unknown'}`,
+            description: `Meeting booked: ${meeting.full_name || 'Unknown'}`, // Use 'full_name' here
             timestamp: new Date(meeting.created_at),
             status: meeting.status
         }));
 
-        // Combine, sort by timestamp (most recent first), and take the top 5
         const combinedActivities = [...conversationActivities, ...meetingActivities]
             .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-            .slice(0, 5); // Limit to latest 5 overall
+            .slice(0, 5);
 
         console.log("RecentActivity: Data processed.", combinedActivities);
         setActivities(combinedActivities);
@@ -90,17 +90,18 @@ export function RecentActivity() {
   }, [companySupabase, toast]);
 
 
-  // Determine icon and link based on activity type
+  // --- Helper functions remain the same ---
   const getActivityIcon = (type: "conversation" | "meeting") => {
       return type === "conversation"
         ? <MessageSquare className="h-5 w-5 text-blue-400" />
         : <CalendarCheck className="h-5 w-5 text-green-400" />;
   }
    const getActivityLink = (item: ActivityItem) => {
-      return item.type === "conversation" ? "/dashboard/conversations" : "/dashboard/leads"; // Link to relevant page
+      return item.type === "conversation" ? "/dashboard/conversations" : "/dashboard/leads";
   }
    const getStatusBadge = (status?: string) => {
-       if (!status) return null;
+       // ... (status badge logic remains the same)
+        if (!status) return null;
        let className = "border-[#EDE7C7]/50 text-[#EDE7C7]/60";
        if (status === 'confirmed' || status === 'active') className = "border-green-500/50 text-green-500";
        if (status === 'pending_confirmation') className = "border-yellow-500/50 text-yellow-500";
@@ -108,18 +109,15 @@ export function RecentActivity() {
        return <Badge variant="outline" className={`text-xs ${className}`}>{status.replace(/_/g, ' ')}</Badge>;
    }
 
-
+  // --- Render logic remains the same ---
   return (
     <Card className="bg-[#1A1A1A] border-[#2A2A2A]">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-[#EDE7C7]">Recent Activity</CardTitle>
-        {/* Optional: Link to a dedicated activity log page if created later */}
-        {/* <Link href="/dashboard/activity" className="text-sm text-[#EDE7C7]/60 hover:text-[#EDE7C7] transition-colors">View all</Link> */}
       </CardHeader>
       <CardContent>
         {isLoading ? (
             <div className="space-y-4">
-                 {/* Loading Skeletons */}
                  {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-center gap-4 p-3">
                          <div className="h-5 w-5 bg-[#2A2A2A] rounded animate-pulse"></div>
@@ -145,12 +143,9 @@ export function RecentActivity() {
                   <div className="flex-1 space-y-1 overflow-hidden">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-[#EDE7C7] truncate group-hover:text-white transition-colors">{activity.description}</p>
-                      {/* Optional: Show status badge if relevant */}
-                      {/* {getStatusBadge(activity.status)} */}
                     </div>
                     <div className="flex items-center gap-1 text-xs text-[#EDE7C7]/40">
                       <Clock className="h-3 w-3" />
-                      {/* Format timestamp relative to now */}
                       {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
                     </div>
                   </div>
